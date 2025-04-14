@@ -5,8 +5,9 @@
 
 ZeroMark is designed as a portable, fast, and secure note-taking tool tailored for the specific needs of Security Operations Center (SOC) analysts and other technical users requiring robust offline capabilities and OPSEC awareness. It runs entirely within your browser as a single HTML file, leveraging modern web APIs for local file access without requiring any server-side components or external dependencies (beyond the optional Marked.js for preview).
 
-<!-- Optional: Add a screenshot here later -->
-<!-- ![ZeroMark Screenshot](link/to/your/screenshot.png) -->
+<p align="center">
+  <img src="sample/sample3.png"/>
+</p>
 
 ## Key Features
 
