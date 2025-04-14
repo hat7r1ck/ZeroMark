@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FortressNotes</title>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- Catppuccin Mocha Theme (Same) --- */
+        :root {
+            /* Palette */
+            --ctp-rosewater: #f5e0dc; --ctp-flamingo: #f2cdcd; --ctp-pink: #f5c2e7; --ctp-mauve: #cba6f7; --ctp-red: #f38ba8; --ctp-maroon: #eba0ac; --ctp-peach: #fab387; --ctp-yellow: #f9e2af; --ctp-green: #a6e3a1; --ctp-teal: #94e2d5; --ctp-sky: #89dceb; --ctp-sapphire: #74c7ec; --ctp-blue: #89b4fa; --ctp-lavender: #b4befe; --ctp-text: #cdd6f4; --ctp-subtext1: #bac2de; --ctp-subtext0: #a6adc8; --ctp-overlay2: #9399b2; --ctp-overlay1: #7f849c; --ctp-overlay0: #6c7086; --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244; --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
+            /* Semantics */
+            --bg-color: var(--ctp-base); --sidebar-bg: var(--ctp-mantle); --editor-bg: var(--ctp-base); --text-color: var(--ctp-text); --text-color-secondary: var(--ctp-subtext0); --text-color-subtle: var(--ctp-overlay1); --accent-color: var(--ctp-sapphire); --border-color: var(--ctp-overlay0); --hover-bg: var(--ctp-surface1); --button-bg: var(--ctp-surface0); --button-text: var(--ctp-text); --link-color: var(--ctp-blue); --code-bg: var(--ctp-surface0); --active-item-bg: var(--ctp-sapphire); --active-item-text: var(--ctp-crust); --error-color: var(--ctp-red); --success-color: var(--ctp-green); --warning-color: var(--ctp-yellow); --preview-heading-color: var(--ctp-sapphire); --preview-blockquote-border: var(--ctp-sapphire); --preview-blockquote-text: var(--ctp-overlay2); --scrollbar-thumb-bg: var(--ctp-surface1); --scrollbar-track-bg: var(--ctp-mantle); --cursor-color: var(--ctp-rosewater); --inline-code-text: var(--ctp-peach);
+            --tree-line-color: var(--ctp-surface1);
+            --tree-indent: 20px;
+            /* Level Colors */
+            --level-0-color: var(--ctp-text); --level-1-color: var(--ctp-sapphire); --level-2-color: var(--ctp-mauve); --level-3-color: var(--ctp-red); --level-4-color: var(--ctp-peach); --level-5-color: var(--ctp-green); --level-6-color: var(--ctp-teal);
+        }
+
+        /* --- Base Styles (Same) --- */
+        *, *::before, *::after { box-sizing: border-box; }
+        body { display: flex; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow: hidden; font-size: 16px; line-height: 1.5; }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            width: 250px; border-right: 1px solid var(--border-color); background-color: var(--sidebar-bg);
+            display: flex; /* Children stack vertically */
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 100vh; /* Full viewport height */
+            transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border 0.3s ease;
+        }
+        #sidebar-header {
+            padding: 10px 10px 10px 15px; border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0; /* Don't shrink header */
+            display: flex; align-items: center;
+        }
+        #sidebar-header button { margin-left: 0; }
+
+        /* === Collapsible Section Structure (CSS FIXES) === */
+        .sidebar-section {
+             border-bottom: 1px solid var(--border-color);
+             flex-shrink: 0; /* Default: sections don't shrink */
+             display: flex; /* Enable flex for vertical stacking of header/content */
+             flex-direction: column;
+             /* min-height: 0; /* Add this? Maybe not needed if height is constrained later */
+        }
+        .sidebar-section.files {
+            flex-grow: 1; /* Files section takes remaining space */
+            flex-shrink: 1; /* Allow it to shrink if needed (though others are shrink:0) */
+            border-bottom: none;
+             min-height: 0; /* !!! CRUCIAL for flex children that need to scroll !!! */
+        }
+        .sidebar-section-header {
+            display: flex; align-items: center; padding: 8px 10px 8px 15px; cursor: pointer;
+            font-size: 0.95em; font-weight: 600; color: var(--accent-color);
+            flex-shrink: 0; /* Header within section should not shrink */
+        }
+        .sidebar-section-header:hover { background-color: var(--hover-bg); }
+        .sidebar-section-toggle { margin-right: 8px; width: 1em; display: inline-block; text-align: center; transition: transform 0.2s ease-in-out; }
+        .sidebar-section.collapsed .sidebar-section-toggle { transform: rotate(-90deg); }
+
+        /* Default content styling (applies to tags/todos unless overridden) */
+        .sidebar-section-content {
+            padding: 0;
+            overflow: hidden; /* Hide overflow by default, enable scrolling specifically below */
+             /* Transition properties for collapse/expand */
+             transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out, border 0.3s ease-out;
+             /* min-height: 0; /* May be needed if content itself is flex */
+        }
+
+        /* --- Content area WITHIN the Files section --- */
+        .sidebar-section.files .sidebar-section-content {
+            flex-grow: 1; /* Make this content area fill the .files section */
+            overflow-y: auto; /* *** ENABLE SCROLLING *** */
+            overflow-x: hidden;
+            /* No max-height needed, flex-grow handles it */
+             min-height: 0; /* !!! CRUCIAL for flex children that need to scroll !!! */
+        }
+
+        /* --- Content areas for Tags & TODOs --- */
+        .sidebar-section#tags-section-container .sidebar-section-content,
+        .sidebar-section#todos-section-container .sidebar-section-content {
+            max-height: 200px; /* Explicit max height */
+            overflow-y: auto; /* Enable scrolling within the max-height */
+             overflow-x: hidden;
+             /* No flex-grow needed here */
+        }
+
+         /* Hiding collapsed content */
+        .sidebar-section.collapsed .sidebar-section-content {
+            max-height: 0 !important;
+            opacity: 0;
+            overflow: hidden; /* Ensure no scrollbars when collapsed */
+            padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0;
+            border-width: 0; /* Hide borders too */
+        }
+
+        /* --- Specific list styling --- */
+        #file-list {
+            /* height: 100%; /* REMOVED - rely on parent flexbox */
+            padding: 5px 0 10px 0;
+        }
+        #tag-list { padding: 5px 10px 10px 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+        #todo-list { padding: 5px 10px 10px 10px; }
+        #file-list p, #tag-list span.placeholder, #todo-list span.placeholder { padding: 5px 10px; font-style: italic; color: var(--text-color-subtle); font-size: 0.9em; }
+
+        /* Tree View Styles (Same) */
+        .tree-root, .tree-node-children { list-style: none; padding-left: var(--tree-indent); margin: 0; position: relative; } .tree-root { padding-left: 0; } .tree-root ul::before, .tree-node-children::before { content: ''; position: absolute; left: calc(var(--tree-indent) / 2); top: 0; bottom: 0; width: 1px; background: var(--tree-line-color); z-index: 1; } .tree-node.collapsed > .tree-node-children::before, .tree-node-children:empty::before { display: none; } .tree-node { position: relative; padding: 1px 0; } .tree-node::before { content: ''; position: absolute; left: calc(-1 * var(--tree-indent) / 2); top: 1em; width: calc(var(--tree-indent) / 2); height: 1px; background: var(--tree-line-color); z-index: 1; } .tree-root > .tree-node::before { display: none; } .tree-node:last-child::after { content: ''; position: absolute; left: calc(-1 * var(--tree-indent)); top: 1.05em; bottom: 0; width: 1px; background: var(--sidebar-bg); z-index: 1; } .node-content { display: flex; align-items: center; padding: 3px 5px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9em; transition: background-color 0.15s ease, color 0.15s ease; color: var(--level-color, var(--text-color)); } .node-content:hover { background-color: var(--hover-bg); } .tree-node.active > .node-content { background-color: var(--active-item-bg); color: var(--active-item-text) !important; font-weight: 600; } .node-icon { margin-right: 6px; width: 1.3em; display: inline-block; text-align: center; flex-shrink: 0; font-size: 0.9em; color: var(--accent-color); transition: transform 0.15s ease-in-out; } .tree-node:not(.collapsed) > .node-content > .node-icon.folder-icon { transform: rotate(90deg); } .tree-node.collapsed > .tree-node-children { display: none; }
+
+        /* Tag/TODO Styles (Same) */
+        .tag-item { display: inline-block; background-color: var(--ctp-surface0); padding: 2px 6px; margin: 2px; border-radius: 10px; cursor: pointer; transition: background-color 0.15s ease; color: var(--ctp-blue); } .tag-item:hover { background-color: var(--hover-bg); }
+        .todo-item { display: flex; align-items: flex-start; margin-bottom: 4px; padding: 2px 0;}
+        .todo-item input[type="checkbox"] { margin-right: 8px; margin-top: 4px; flex-shrink: 0; accent-color: var(--ctp-mauve); cursor: pointer; }
+        .todo-item label { flex-grow: 1; display: flex; align-items: center; cursor: pointer;} .todo-item-text { flex-grow: 1; }
+        .todo-item.completed label { text-decoration: line-through; color: var(--ctp-overlay1); }
+        .todo-source { font-size: 0.8em; color: var(--ctp-overlay0); margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+
+        /* --- Main Content, Editor, Preview, etc. (Same) --- */
+        #main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; } #editor-controls { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid var(--border-color); background-color: var(--bg-color); } #current-file-info { color: var(--text-color-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; margin-right: 10px; font-size: 0.9em; } #editor-area { flex-grow: 1; position: relative; background-color: var(--editor-bg); display: flex; overflow: hidden; } #editor, #preview { flex-grow: 1; padding: 20px; color: var(--text-color); font-size: 1rem; overflow-y: auto; line-height: 1.6; } #editor { outline: none; resize: none; font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; white-space: pre-wrap; caret-color: var(--cursor-color); } #preview { white-space: normal; font-family: inherit; display: none; } #preview > *:first-child { margin-top: 0; } #preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6 { color: var(--preview-heading-color); margin-top: 1.4em; margin-bottom: 0.6em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border-color);} #preview h1 { font-size: 1.8em; } #preview h2 { font-size: 1.5em; } #preview h3 { font-size: 1.3em; } #preview p { margin-bottom: 1em; } #preview a { color: var(--link-color); text-decoration: none; } #preview a:hover { text-decoration: underline; } #preview code { background-color: var(--code-bg); color: var(--inline-code-text); padding: 0.2em 0.4em; margin: 0 2px; border-radius: 3px; font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; font-size: 0.9em; } #preview pre { background-color: var(--code-bg); padding: 15px; border-radius: 4px; overflow-x: auto; border: 1px solid var(--border-color); margin-bottom: 1em; } #preview pre code { background-color: transparent; color: var(--text-color); padding: 0; margin: 0; border-radius: 0; font-size: 0.9em; } #preview ul, #preview ol { margin-left: 25px; margin-bottom: 1em; } #preview li { margin-bottom: 0.5em; } #preview blockquote { border-left: 4px solid var(--preview-blockquote-border); margin: 1.5em 0; padding: 0.5em 1.2em; color: var(--preview-blockquote-text); background-color: var(--code-bg); } #preview blockquote > *:first-child { margin-top: 0; } #preview blockquote > *:last-child { margin-bottom: 0; } #preview table { border-collapse: collapse; width: auto; margin-bottom: 1.5em; border: 1px solid var(--border-color); } #preview th, #preview td { border: 1px solid var(--border-color); padding: 8px 12px; } #preview th { background-color: var(--code-bg); font-weight: 600; } #preview hr { border: 0; border-top: 1px solid var(--border-color); margin: 2em 0; } #preview img { max-width: 100%; height: auto; } #editor:empty:before { content: attr(placeholder); color: var(--text-color-subtle); pointer-events: none; position: absolute; top: 20px; left: 20px; font-style: italic; }
+        button { padding: 6px 12px; background-color: var(--button-bg); color: var(--button-text); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-left: 5px; flex-shrink: 0; transition: background-color 0.15s ease; font-weight: 500; } button:hover { background-color: var(--hover-bg); } button:disabled { background-color: var(--ctp-surface0); color: var(--ctp-overlay0); cursor: not-allowed; opacity: 0.6; } body.zen-mode #sidebar { width: 0; opacity: 0; padding-left: 0; padding-right: 0; border: none; overflow: hidden; }
+        ::-webkit-scrollbar { width: 9px; height: 9px; } ::-webkit-scrollbar-track { background: var(--scrollbar-track-bg); } ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-bg); border-radius: 5px; border: 2px solid var(--scrollbar-track-bg); } ::-webkit-scrollbar-thumb:hover { background: var(--ctp-surface2); } ::-webkit-scrollbar-corner { background: var(--scrollbar-track-bg); }
+    </style>
+</head>
+<body>
+    <!-- HTML Structure (Same as last known good version) -->
+    <div id="sidebar">
+        <div id="sidebar-header"><button id="open-folder-btn" title="Open Folder">📂 Open</button></div>
+        <div class="sidebar-section files" id="files-section-container">
+            <div class="sidebar-section-header" data-target="file-list-content"><span class="sidebar-section-toggle">▼</span> Files</div>
+            <div class="sidebar-section-content" id="file-list-content">
+                <div id="file-list"><p>No folder selected.</p></div>
+            </div>
+        </div>
+        <div class="sidebar-section collapsed" id="tags-section-container">
+            <div class="sidebar-section-header" data-target="tag-list-content"><span class="sidebar-section-toggle">▶</span> Tags</div>
+            <div class="sidebar-section-content" id="tag-list-content">
+                <div id="tag-list"><span class="placeholder">(No folder open)</span></div>
+            </div>
+        </div>
+         <div class="sidebar-section collapsed" id="todos-section-container">
+            <div class="sidebar-section-header" data-target="todo-list-content"><span class="sidebar-section-toggle">▶</span> TODOs</div>
+            <div class="sidebar-section-content" id="todo-list-content">
+                <div id="todo-list"><span class="placeholder">(No folder open)</span></div>
+            </div>
+        </div>
+    </div>
+    <div id="main-content"><div id="editor-controls"><div id="current-file-info">No file selected</div><div><button id="toggle-focus-btn" title="Toggle Focus Mode (Show/Hide Sidebar)">🧘 Zen</button><button id="save-btn" disabled title="Save (Ctrl+S) / Save As...">💾 Save</button><button id="toggle-view-btn" disabled title="Toggle Edit/Preview Mode">👁️‍🗨️ Toggle</button></div></div><div id="editor-area"><div id="editor" contenteditable="true" spellcheck="false" placeholder="Select or create a note..."></div><div id="preview"></div></div></div>
+
+    <script>
+        // --- All JS from the previous working version ---
+        // (Starting from the version after TODO click fix, before filter attempts)
+        // --- Global State ---
+        let directoryHandle = null; let currentFileHandle = null; let fileTree = null;
+        let isDirty = false; let currentView = 'editor'; let activeTreeNodeElement = null;
+        let allTags = new Set(); let allTodos = []; let fileMetadata = new Map();
+        let throttleTimer = null;
+
+        // --- DOM Elements ---
+        const openFolderBtn = document.getElementById('open-folder-btn'); const toggleFocusBtn = document.getElementById('toggle-focus-btn'); const fileListDiv = document.getElementById('file-list'); const editor = document.getElementById('editor'); const preview = document.getElementById('preview'); const currentFileInfoDiv = document.getElementById('current-file-info'); const saveBtn = document.getElementById('save-btn'); const toggleViewBtn = document.getElementById('toggle-view-btn'); const editorArea = document.getElementById('editor-area'); const tagListDiv = document.getElementById('tag-list'); const todoListDiv = document.getElementById('todo-list'); const sidebar = document.getElementById('sidebar');
+
+        // --- Event Listeners ---
+        openFolderBtn.addEventListener('click', openFolder);
+        toggleFocusBtn.addEventListener('click', toggleFocusMode); // Zen mode button
+        sidebar.addEventListener('click', handleSidebarClick); // Delegated listener
+        editor.addEventListener('input', handleEditorInput); // Handles enabling Save/Toggle
+        saveBtn.addEventListener('click', handleSaveClick);
+        toggleViewBtn.addEventListener('click', toggleView);
+        document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSaveClick(); } });
+        editor.addEventListener('paste', (e) => { e.preventDefault(); const text = e.clipboardData.getData('text/plain'); document.execCommand('insertText', false, text); });
+        todoListDiv.addEventListener('change', handleTodoCheckboxChange);
+
+        // --- Functions ---
+
+        // Sidebar Click Handler (handles sections, tree, tags, todo labels)
+        function handleSidebarClick(event) {
+            const sectionHeader = event.target.closest('.sidebar-section-header');
+            const treeNodeContent = event.target.closest('.node-content');
+            const tagItem = event.target.closest('.tag-item'); // For later filter click
+            const todoLabel = event.target.closest('.todo-item label');
+
+            if (sectionHeader) { // <<<< This should work >>>>
+                toggleSidebarSection(sectionHeader.closest('.sidebar-section'));
+            } else if (treeNodeContent) { // Handle Tree Node Click
+                handleTreeClick(treeNodeContent);
+            } else if (tagItem) { // <<<< Placeholder for filter >>>>
+                 console.log("Tag click detected:", tagItem.dataset.tag);
+                 alert(`Filtering by tag: #${tagItem.dataset.tag} (Not implemented yet)`);
+            } else if (todoLabel && event.target.type !== 'checkbox') { // Handle Click on TODO Label
+                 handleTodoItemClick(todoLabel.closest('.todo-item'));
+            }
+        }
+
+        // Toggle Sidebar Section Helper
+        function toggleSidebarSection(section) {
+            if (section) {
+                section.classList.toggle('collapsed');
+                const toggleIcon = section.querySelector('.sidebar-section-toggle');
+                if (toggleIcon) {
+                    toggleIcon.textContent = section.classList.contains('collapsed') ? '▶' : '▼';
+                }
+            }
+        }
+
+        // Tree Click Logic (Loads file or toggles folder)
+        async function handleTreeClick(contentElement) {
+            const nodeLiElement = contentElement.closest('.tree-node');
+            if (!nodeLiElement) return;
+            const type = contentElement.dataset.type;
+            const name = nodeLiElement.dataset.name;
+
+            if (type === 'folder') {
+                nodeLiElement.classList.toggle('collapsed'); // Toggle folder state
+            } else if (type === 'file') {
+                const fileHandle = findHandleInTree(fileTree, name); // Find in original tree
+                if (fileHandle) {
+                    if (isDirty && !window.confirm("Discard unsaved changes?")) { return; }
+                    await loadFile(fileHandle);
+                    if (activeTreeNodeElement) activeTreeNodeElement.classList.remove('active');
+                    activeTreeNodeElement = nodeLiElement;
+                    activeTreeNodeElement.classList.add('active');
+                } else {
+                    console.error("File handle not found for:", name); alert("Error finding handle.");
+                }
+            }
+        }
+
+        // Todo Item LABEL Click Logic (Loads Note)
+        async function handleTodoItemClick(todoElement) {
+             if (!todoElement) return;
+            const todoIndex = parseInt(todoElement.dataset.todoIndex, 10);
+            const clickedTodo = allTodos.find(todo => todo.currentIndex === todoIndex);
+
+            if (clickedTodo?.fileHandle) {
+                 if (isDirty && !window.confirm("Discard unsaved changes?")) { return; }
+                 await loadFile(clickedTodo.fileHandle);
+                 const nodeElement = findNodeElementByName(fileListDiv, clickedTodo.fileName);
+                 if(nodeElement) {
+                     if (activeTreeNodeElement) activeTreeNodeElement.classList.remove('active');
+                     activeTreeNodeElement = nodeElement;
+                     activeTreeNodeElement.classList.add('active');
+                     let parent = activeTreeNodeElement.parentElement?.closest('.tree-node.collapsed');
+                     while(parent) { parent.classList.remove('collapsed'); parent = parent.parentElement?.closest('.tree-node.collapsed'); }
+                     activeTreeNodeElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                 } else {
+                    if (activeTreeNodeElement) activeTreeNodeElement.classList.remove('active');
+                    activeTreeNodeElement = null;
+                 }
+            } else { console.error("TODO data/handle not found:", todoIndex); }
+        }
+
+        // Parse File Content
+        function parseFileContent(content) { const tags = new Set(); const todos = []; const tagRegex = /#([a-zA-Z0-9_\/]+)/g; let tagMatch; while ((tagMatch = tagRegex.exec(content)) !== null) { tags.add(tagMatch[1]); } const todoRegex = /^\s*-\s+\[([ xX])\]\s+(.*)/gm; let todoMatch; while ((todoMatch = todoRegex.exec(content)) !== null) { const taskText = todoMatch[2].trim(); const isOnlyImageLink = taskText.startsWith('![[') && taskText.endsWith(']]'); if (!isOnlyImageLink) { const lineStartIndex = todoMatch.index; const nextNewline = content.indexOf('\n', lineStartIndex); const lineEndIndex = nextNewline === -1 ? content.length : nextNewline; const originalLine = content.substring(lineStartIndex, lineEndIndex); todos.push({ completed: todoMatch[1].toLowerCase() === 'x', text: taskText, originalLine: originalLine.trim() }); } } return { tags, todos }; }
+
+        // Process a single file to extract metadata
+        async function processFile(fileHandle) {
+             try {
+                 const file = await fileHandle.getFile();
+                 const content = await file.text();
+                 const metadata = parseFileContent(content);
+                 fileMetadata.set(fileHandle, { tags: metadata.tags, todos: metadata.todos });
+                 metadata.tags.forEach(tag => allTags.add(tag));
+                 metadata.todos.forEach(todo => { allTodos.push({ ...todo, fileHandle: fileHandle, fileName: fileHandle.name }); });
+             } catch (error) { console.error(`Error processing file ${fileHandle.name}:`, error); throw error; }
+         }
+
+        // Render TODOs List in Sidebar (with fix for label click)
+        function renderTodos() { todoListDiv.innerHTML = ''; if (allTodos.length === 0) { todoListDiv.innerHTML = '<span class="placeholder">(No TODOs found)</span>'; return; } allTodos.sort((a, b) => { if (a.completed !== b.completed) return a.completed ? 1 : -1; return a.fileName.localeCompare(b.fileName); }); allTodos.forEach((todo, index) => { todo.currentIndex = index; const todoElement = document.createElement('div'); todoElement.classList.add('todo-item'); if (todo.completed) todoElement.classList.add('completed'); todoElement.dataset.todoIndex = index; const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = todo.completed; const label = document.createElement('label'); const textSpan = document.createElement('span'); textSpan.classList.add('todo-item-text'); textSpan.textContent = todo.text; const sourceSpan = document.createElement('span'); sourceSpan.classList.add('todo-source'); sourceSpan.textContent = `(${todo.fileName})`; sourceSpan.title = todo.fileName; label.appendChild(textSpan); label.appendChild(sourceSpan); todoElement.appendChild(checkbox); todoElement.appendChild(label); todoListDiv.appendChild(todoElement); }); }
+
+        // TODO Checkbox Change Handler
+        async function handleTodoCheckboxChange(event) { if (event.target.type !== 'checkbox') return; const checkbox = event.target; const todoElement = checkbox.closest('.todo-item'); if (!todoElement) return; const todoIndex = parseInt(todoElement.dataset.todoIndex, 10); const todoItem = allTodos.find(todo => todo.currentIndex === todoIndex); if (!todoItem?.fileHandle || typeof todoItem.originalLine !== 'string') { console.error("Cannot update TODO: Missing data", todoIndex, todoItem); checkbox.checked = !checkbox.checked; alert("Error updating TODO state."); return; } const newCompletedState = checkbox.checked; const fileHandle = todoItem.fileHandle; const originalLineText = todoItem.originalLine; console.log(`Toggling TODO: "${todoItem.text}" to ${newCompletedState}`); checkbox.disabled = true; todoElement.style.opacity = '0.6'; try { if (await fileHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') { if (await fileHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('Permission denied.'); } const file = await fileHandle.getFile(); let fileContent = await file.text(); const lines = fileContent.split('\n'); let lineFound = false; let lineIndexToModify = -1; for(let i = 0; i < lines.length; i++) { if (lines[i].trim() === originalLineText) { const match = lines[i].match(/^\s*-\s+\[([ xX])\]/); if (match && (match[1].toLowerCase()==='x') !== newCompletedState) lineIndexToModify = i; lineFound = true; break; } } if (!lineFound) throw new Error(`Could not find line: "${originalLineText}"`); if (lineIndexToModify > -1) { const mark = newCompletedState ? 'x' : ' '; const lead = lines[lineIndexToModify].match(/^\s*/)[0]; lines[lineIndexToModify] = `${lead}- [${mark}] ${todoItem.text}`; const updatedContent = lines.join('\n'); const writable = await fileHandle.createWritable(); await writable.write(updatedContent); await writable.close(); console.log(`TODO updated in ${fileHandle.name}`); todoItem.completed = newCompletedState; todoItem.originalLine = lines[lineIndexToModify].trim(); } else { console.log("TODO state already matches."); todoItem.completed = newCompletedState; } renderTodos(); } catch (error) { console.error("Error updating TODO:", error); alert(`Failed to update TODO: ${error.message}`); checkbox.checked = !newCompletedState; renderTodos(); } finally { if(document.body.contains(checkbox)) checkbox.disabled = false; if(document.body.contains(todoElement)) todoElement.style.opacity = '1'; } }
+
+        // --- Folder/File Handling ---
+        async function openFolder() {
+            console.log("Attempting to open folder...");
+            try {
+                directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                if (await directoryHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') { alert('Read and write permissions are required.'); directoryHandle = null; return; }
+                console.log("Folder selected:", directoryHandle.name);
+                resetEditorState(); clearMetadata();
+                console.log("Building file tree...");
+                await buildFileTree();
+                console.log("Scanning files for metadata...");
+                await scanAllFilesForMetadata();
+                console.log("Folder opening process complete.");
+            } catch (err) { if (err.name !== 'AbortError') { console.error('Error during folder opening process:', err); alert('Error opening folder or processing its contents.'); } else { console.log("Folder open cancelled."); } fileListDiv.innerHTML = '<p>Failed to open folder or process contents.</p>'; resetEditorState(); clearMetadata(); renderTags(); renderTodos(); directoryHandle = null; fileTree = null; }
+        }
+
+        async function buildFileTree() {
+             if (!directoryHandle) return;
+             fileListDiv.innerHTML = '<p>Building file tree...</p>';
+             try {
+                 fileTree = await readDirectoryRecursive(directoryHandle);
+                 const rootUl = document.createElement('ul'); rootUl.classList.add('tree-root');
+                 renderFileTree(fileTree, rootUl, 0);
+                 fileListDiv.innerHTML = ''; fileListDiv.appendChild(rootUl);
+                 console.log("File tree built and rendered.");
+             } catch (error) { console.error("Tree build error:", error); fileListDiv.innerHTML = '<p>Error building file tree.</p>'; fileTree = null; clearMetadata(); renderTags(); renderTodos(); throw error; }
+         }
+
+        async function readDirectoryRecursive(dirHandle) { const entries = []; try { for await (const entry of dirHandle.values()) { if (entry.kind === 'file') { if (entry.name.endsWith('.md') && !entry.name.startsWith('.')) entries.push({ handle: entry, name: entry.name, type: 'file' }); } else if (entry.kind === 'directory') { if (!entry.name.startsWith('.')) { const children = await readDirectoryRecursive(entry); entries.push({ handle: entry, name: entry.name, type: 'folder', children: children }); } } } } catch (e) { console.error(`Error reading directory ${dirHandle.name}:`, e); throw e; } entries.sort((a, b) => { if (a.type !== b.type) return a.type === 'folder' ? -1 : 1; return a.name.localeCompare(b.name); }); return entries; }
+
+        function renderFileTree(nodesToRender, containerUlElement, level) { if (!nodesToRender || nodesToRender.length === 0) { if (level === 0 && containerUlElement.classList.contains('tree-root')) { fileListDiv.innerHTML = '<p>No markdown notes found.</p>'; } return; } nodesToRender.forEach((node, index) => { const isLast = index === nodesToRender.length - 1; const nodeLiElement = document.createElement('li'); nodeLiElement.classList.add('tree-node'); if (isLast) nodeLiElement.classList.add('is-last'); nodeLiElement.dataset.name = node.name; const contentElement = document.createElement('div'); contentElement.classList.add('node-content'); contentElement.dataset.type = node.type; const levelColorVar = `--level-${level % 7}-color`; contentElement.style.setProperty('--level-color', `var(${levelColorVar})`); const iconElement = document.createElement('span'); iconElement.classList.add('node-icon'); contentElement.appendChild(iconElement); contentElement.appendChild(document.createTextNode(` ${node.name}`)); nodeLiElement.appendChild(contentElement); if (node.type === 'folder') { nodeLiElement.classList.add('collapsed'); iconElement.classList.add('folder-icon'); iconElement.textContent = '▶'; contentElement.dataset.handleKind = 'directory'; const childrenUlElement = document.createElement('ul'); childrenUlElement.classList.add('tree-node-children'); nodeLiElement.appendChild(childrenUlElement); if (node.children?.length > 0) renderFileTree(node.children, childrenUlElement, level + 1); } else { iconElement.textContent = '📄'; contentElement.dataset.handleKind = 'file'; } containerUlElement.appendChild(nodeLiElement); }); }
+
+        async function scanAllFilesForMetadata() {
+            console.log("Starting metadata scan...");
+            clearMetadata(); renderTags(); renderTodos(); // Clear data, render empty UI
+            if (!fileTree) { console.log("Scan skipped: No file tree."); return; }
+            const fileHandlesToScan = [];
+            function collectFileHandles(nodes) { if(!nodes) return; nodes.forEach(node => { if (node.type === 'file') fileHandlesToScan.push(node.handle); else if (node.type === 'folder') collectFileHandles(node.children); }); }
+            collectFileHandles(fileTree);
+            if (fileHandlesToScan.length === 0) { console.log("No markdown files to scan."); return; }
+            console.log(`Scanning ${fileHandlesToScan.length} file(s)...`);
+            let hasErrors = false;
+            try {
+                const results = await Promise.allSettled(fileHandlesToScan.map(handle => processFile(handle)));
+                results.forEach((result, index) => { if (result.status === 'rejected') { hasErrors = true; console.error(`Failed to process metadata for ${fileHandlesToScan[index]?.name}:`, result.reason); } });
+                console.log("Metadata scan process finished.");
+                if (hasErrors) { alert("Some files could not be processed. Tags/TODOs might be incomplete."); }
+            } catch (unexpectedError) { console.error("Unexpected error during scan setup:", unexpectedError); alert("Unexpected error during file scanning."); hasErrors = true; }
+            finally { console.log("Rendering final tags/todos lists."); renderTags(); renderTodos(); } // Always render results
+        }
+
+        function renderTags() { tagListDiv.innerHTML = ''; if (allTags.size === 0) { tagListDiv.innerHTML = '<span class="placeholder">(No tags found)</span>'; return; } const sortedTags = Array.from(allTags).sort((a, b) => a.localeCompare(b)); sortedTags.forEach(tag => { const tagElement = document.createElement('span'); tagElement.classList.add('tag-item'); tagElement.textContent = `#${tag}`; tagElement.dataset.tag = tag; tagListDiv.appendChild(tagElement); }); }
+        function clearMetadata() { allTags.clear(); allTodos = []; fileMetadata.clear(); console.log("Cleared internal metadata stores."); }
+        function findHandleInTree(treeNodes, targetName) { if (!treeNodes) return null; function searchNodes(nodesToSearch) { if (!nodesToSearch) return null; for (const node of nodesToSearch) { if (node.type === 'file' && node.name === targetName) return node.handle; if (node.type === 'folder') { const found = searchNodes(node.children); if (found) return found; } } return null; } return searchNodes(treeNodes); }
+        function findNodeElementByName(container, name) { if (!container || !name) return null; try { return container.querySelector(`.tree-node[data-name="${CSS.escape(name)}"]`); } catch (e) { console.error("Error finding node element:", e); return null; } }
+
+        // --- Editor & File Handling ---
+        async function loadFile(fileHandle) { if (!fileHandle || fileHandle.kind !== 'file') return; try { currentFileHandle = fileHandle; const file = await fileHandle.getFile(); const content = await file.text(); editor.innerText = content; updatePreview(); currentFileInfoDiv.textContent = `${fileHandle.name}`; saveBtn.disabled = true; toggleViewBtn.disabled = editor.innerText.trim() === ''; isDirty = false; setView('editor'); editor.focus({ preventScroll: true }); editor.scrollTop = 0; } catch (err) { console.error(`Load error: ${fileHandle?.name}`, err); alert(`Error loading ${fileHandle?.name}.`); resetEditorState(); } }
+        function handleEditorInput() { const editorHasText = editor.innerText.trim() !== ''; isDirty = true; saveBtn.disabled = !isDirty; toggleViewBtn.disabled = !editorHasText; if (editorHasText && currentView === 'preview') { throttlePreviewUpdate(); } }
+        function throttlePreviewUpdate() { if (throttleTimer) return; throttleTimer = setTimeout(() => { updatePreview(); throttleTimer = null; }, 250); }
+        function toggleFocusMode() { document.body.classList.toggle('zen-mode'); const isZen = document.body.classList.contains('zen-mode'); toggleFocusBtn.textContent = isZen ? '✨ Unfocus' : '🧘 Zen'; toggleFocusBtn.title = isZen ? 'Show Sidebar' : 'Toggle Focus Mode'; window.dispatchEvent(new Event('resize')); }
+        function toggleView() { if (toggleViewBtn.disabled) return; setView(currentView === 'editor' ? 'preview' : 'editor'); }
+        function updatePreview() { if (currentView === 'preview') { if (typeof marked === 'undefined') { preview.innerHTML = `<p style="color: var(--error-color);">Marked.js missing.</p>`; return; } try { const rawMarkdown = editor.innerText; preview.innerHTML = marked.parse(rawMarkdown, { async: false }); preview.scrollTop = 0; } catch (err) { console.error("Markdown parse error:", err); preview.innerHTML = `<p style="color: var(--error-color);">Preview error.</p>`; } } }
+        function setView(viewMode) { currentView = viewMode; if (viewMode === 'editor') { editor.style.display = 'block'; preview.style.display = 'none'; if(document.activeElement !== editor) editor.focus({ preventScroll: true }); } else { updatePreview(); editor.style.display = 'none'; preview.style.display = 'block'; } }
+        function handleSaveClick() { if (saveBtn.disabled) return; if (currentFileHandle) saveCurrentFile(currentFileHandle); else if (editor.innerText.trim() !== '') saveAsNewFile(); }
+        async function saveCurrentFile(fileHandleToSave) { if (!fileHandleToSave || !isDirty) return; const originalName = fileHandleToSave.name; currentFileInfoDiv.textContent = `Saving ${originalName}...`; saveBtn.disabled = true; try { if (await fileHandleToSave.queryPermission({ mode: 'readwrite' }) !== 'granted') { if (await fileHandleToSave.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('Permission denied.'); } const writable = await fileHandleToSave.createWritable(); await writable.write(editor.innerText); await writable.close(); console.log(`Saved ${originalName}.`); isDirty = false; saveBtn.disabled = true; currentFileInfoDiv.textContent = `${originalName}`; await updateMetadataForFile(fileHandleToSave); } catch (err) { console.error('Save error:', err); alert(`Error saving ${originalName}.`); currentFileInfoDiv.textContent = `Save failed: ${originalName}`; saveBtn.disabled = false; } }
+        async function saveAsNewFile() { console.log("Save As..."); try { const newFileHandle = await window.showSaveFilePicker({ suggestedName: 'Untitled.md', types: [{ description: 'Markdown Files', accept: { 'text/markdown': ['.md'] } }] }); currentFileInfoDiv.textContent = `Saving ${newFileHandle.name}...`; saveBtn.disabled = true; const writable = await newFileHandle.createWritable(); await writable.write(editor.innerText); await writable.close(); console.log(`Saved as ${newFileHandle.name}`); currentFileHandle = newFileHandle; isDirty = false; saveBtn.disabled = true; currentFileInfoDiv.textContent = `${newFileHandle.name}`; toggleViewBtn.disabled = editor.innerText.trim() === ''; if (directoryHandle) { alert(`Saved as ${newFileHandle.name}. Refreshing...`); await buildFileTree(); await scanAllFilesForMetadata(); } else { alert(`Saved as ${newFileHandle.name}.`); } } catch (err) { if (err.name === 'AbortError') { console.log("Save As cancelled."); saveBtn.disabled = !isDirty; currentFileInfoDiv.textContent = currentFileHandle ? currentFileHandle.name : "No file selected"; } else { console.error('Save As error:', err); alert(`Error saving file.`); saveBtn.disabled = !isDirty; currentFileInfoDiv.textContent = "Save As failed"; } } }
+        async function updateMetadataForFile(fileHandle) { console.log(`Metadata update triggered for ${fileHandle.name}. Rescanning all files.`); await scanAllFilesForMetadata(); }
+        function resetEditorState() { console.log("Resetting editor state..."); editor.innerText = ''; preview.innerHTML = ''; currentFileInfoDiv.textContent = 'No file selected'; currentFileHandle = null; isDirty = false; saveBtn.disabled = true; toggleViewBtn.disabled = true; if (activeTreeNodeElement) { activeTreeNodeElement.classList.remove('active'); activeTreeNodeElement = null; } setView('editor'); if (!directoryHandle) { console.log("No active directory, clearing folder-specific UI."); fileListDiv.innerHTML = '<p>No folder selected.</p>'; fileTree = null; // Clear tree data if no folder active
+                // Clear metadata and update UI
+                clearMetadata(); renderTags(); renderTodos();
+            } }
+        function init() { console.log("Initializing FortressNotes..."); if (!window.showDirectoryPicker || !window.FileSystemHandle) { alert('Browser API missing.'); openFolderBtn.disabled = true; toggleFocusBtn.disabled = true; } resetEditorState(); setView('editor'); renderTags(); renderTodos(); // Initial empty render
+            if (typeof marked === 'undefined') { console.warn("Marked.js missing."); toggleViewBtn.title = "Preview unavailable"; toggleViewBtn.disabled = true; } else { marked.setOptions({ breaks: true, gfm: true, pedantic: false, sanitize: false }); }
+            toggleFocusBtn.disabled = false; // Ensure Zen mode button is enabled
+            console.log("FortressNotes initialized."); }
+
+        // --- Start ---
+        init();
+    </script>
+</body>
+</html>

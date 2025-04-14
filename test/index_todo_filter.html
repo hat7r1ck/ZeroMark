@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>FortressNotes - vNext++ (Stable)</title> <!-- Version Bump -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- Catppuccin Mocha Theme --- */
+        :root {
+            /* Palette */
+            --ctp-rosewater: #f5e0dc; --ctp-flamingo: #f2cdcd; --ctp-pink: #f5c2e7; --ctp-mauve: #cba6f7; --ctp-red: #f38ba8; --ctp-maroon: #eba0ac; --ctp-peach: #fab387; --ctp-yellow: #f9e2af; --ctp-green: #a6e3a1; --ctp-teal: #94e2d5; --ctp-sky: #89dceb; --ctp-sapphire: #74c7ec; --ctp-blue: #89b4fa; --ctp-lavender: #b4befe; --ctp-text: #cdd6f4; --ctp-subtext1: #bac2de; --ctp-subtext0: #a6adc8; --ctp-overlay2: #9399b2; --ctp-overlay1: #7f849c; --ctp-overlay0: #6c7086; --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244; --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
+            /* Semantics */
+            --bg-color: var(--ctp-base); --sidebar-bg: var(--ctp-mantle); --editor-bg: var(--ctp-base); --text-color: var(--ctp-text); --text-color-secondary: var(--ctp-subtext0); --text-color-subtle: var(--ctp-overlay1); --accent-color: var(--ctp-sapphire); --border-color: var(--ctp-overlay0); --hover-bg: var(--ctp-surface1); --button-bg: var(--ctp-surface0); --button-text: var(--ctp-text); --link-color: var(--ctp-blue); --code-bg: var(--ctp-surface0); --active-item-bg: var(--ctp-sapphire); --active-item-text: var(--ctp-crust); --error-color: var(--ctp-red); --success-color: var(--ctp-green); --warning-color: var(--ctp-yellow); --preview-heading-color: var(--ctp-sapphire); --preview-blockquote-border: var(--ctp-sapphire); --preview-blockquote-text: var(--ctp-overlay2); --scrollbar-thumb-bg: var(--ctp-surface1); --scrollbar-track-bg: var(--ctp-mantle); --cursor-color: var(--ctp-rosewater); --inline-code-text: var(--ctp-peach);
+            --tree-line-color: var(--ctp-surface1);
+            --tree-indent: 20px;
+            /* Level Colors */
+            --level-0-color: var(--ctp-text); --level-1-color: var(--ctp-sapphire); --level-2-color: var(--ctp-mauve); --level-3-color: var(--ctp-red); --level-4-color: var(--ctp-peach); --level-5-color: var(--ctp-green); --level-6-color: var(--ctp-teal);
+            /* Search Highlight */
+            --search-highlight-bg: var(--ctp-yellow);
+            --search-highlight-text: var(--ctp-crust);
+            /* Active Filter Highlight */
+            --active-filter-tag-bg: var(--ctp-blue);
+            --active-filter-tag-text: var(--ctp-crust);
+        }
+
+        /* --- Base Styles --- */
+        *, *::before, *::after { box-sizing: border-box; }
+        body { display: flex; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; height: 100vh; background-color: var(--bg-color); color: var(--text-color); overflow: hidden; font-size: 16px; line-height: 1.5; }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            width: 250px; border-right: 1px solid var(--border-color); background-color: var(--sidebar-bg);
+            display: flex; flex-direction: column; flex-shrink: 0; height: 100vh;
+            transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border 0.3s ease;
+        }
+        #sidebar-header {
+            padding: 10px 10px 5px 15px; border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0; display: flex; flex-direction: column;
+        }
+        #sidebar-header-buttons { display: flex; align-items: center; margin-bottom: 8px; }
+        #sidebar-header-buttons button { margin-left: 0; margin-right: 5px; }
+        #search-bar {
+            width: 100%; padding: 5px 8px; margin-bottom: 5px;
+            background-color: var(--ctp-surface0); color: var(--ctp-text); border: 1px solid var(--ctp-overlay0); border-radius: 4px; font-size: 0.9em;
+        }
+        #search-bar:focus { outline: none; border-color: var(--accent-color); }
+        #reopen-prompt { display: none; margin-top: 8px; font-size: 0.85em; color: var(--ctp-subtext1); }
+        #reopen-prompt span { margin-right: 10px; }
+        #reopen-prompt button { font-size: 0.8em; padding: 3px 8px; margin-left: 0; margin-right: 5px;}
+
+
+        /* === Collapsible Section Structure === */
+        .sidebar-section { border-bottom: 1px solid var(--border-color); flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-section.files { flex-grow: 1; flex-shrink: 1; border-bottom: none; min-height: 0; }
+        .sidebar-section-header { display: flex; align-items: center; padding: 8px 10px 8px 15px; cursor: pointer; font-size: 0.95em; font-weight: 600; color: var(--accent-color); flex-shrink: 0; position: relative; }
+        .sidebar-section-header:hover { background-color: var(--hover-bg); }
+        .sidebar-section-toggle { margin-right: 8px; width: 1em; display: inline-block; text-align: center; transition: transform 0.2s ease-in-out; pointer-events: none; /* Prevent toggle icon from interfering with header click */ }
+        .sidebar-section.collapsed .sidebar-section-toggle { transform: rotate(-90deg); }
+        .filter-clear-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8em; padding: 1px 5px; background-color: var(--ctp-surface1); display: none; border-radius: 3px; z-index: 5; /* Ensure clickable */ }
+        .sidebar-section-content { padding: 0; overflow: hidden; transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out, border 0.3s ease-out; }
+
+        /* Scrollable Content Areas */
+        .sidebar-section.files .sidebar-section-content { flex-grow: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; }
+        .sidebar-section#tags-section-container .sidebar-section-content,
+        .sidebar-section#todos-section-container .sidebar-section-content { max-height: 150px; overflow-y: auto; overflow-x: hidden; }
+
+        /* Hiding collapsed content */
+        .sidebar-section.collapsed .sidebar-section-content { max-height: 0 !important; opacity: 0; overflow: hidden; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; border-width: 0; }
+
+        /* --- Specific list styling --- */
+        #file-list { padding: 5px 0 10px 0; }
+        #tag-list { padding: 5px 10px 10px 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+        #todo-list { padding: 5px 10px 10px 10px; }
+        #file-list p, #tag-list span.placeholder, #todo-list span.placeholder { padding: 5px 15px; font-style: italic; color: var(--text-color-subtle); font-size: 0.9em; }
+
+        /* Tree View Styles */
+        .tree-root, .tree-node-children { list-style: none; padding-left: var(--tree-indent); margin: 0; position: relative; } .tree-root { padding-left: 0; } .tree-root ul::before, .tree-node-children::before { content: ''; position: absolute; left: calc(var(--tree-indent) / 2); top: 0; bottom: 0; width: 1px; background: var(--tree-line-color); z-index: 1; } .tree-node.collapsed > .tree-node-children::before, .tree-node-children:empty::before { display: none; } .tree-node { position: relative; padding: 1px 0; } .tree-node::before { content: ''; position: absolute; left: calc(-1 * var(--tree-indent) / 2); top: 1em; width: calc(var(--tree-indent) / 2); height: 1px; background: var(--tree-line-color); z-index: 1; } .tree-root > .tree-node::before { display: none; } .tree-node:last-child::after { content: ''; position: absolute; left: calc(-1 * var(--tree-indent)); top: 1.05em; bottom: 0; width: 1px; background: var(--sidebar-bg); z-index: 1; } .node-content { display: flex; align-items: center; padding: 3px 5px; margin-right: 5px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9em; transition: background-color 0.15s ease, color 0.15s ease; color: var(--level-color, var(--text-color)); } .node-content:hover { background-color: var(--hover-bg); } .tree-node.active > .node-content { background-color: var(--active-item-bg); color: var(--active-item-text) !important; font-weight: 600; } .node-icon { margin-right: 6px; width: 1.3em; display: inline-block; text-align: center; flex-shrink: 0; font-size: 0.9em; color: var(--accent-color); transition: transform 0.15s ease-in-out; } .tree-node:not(.collapsed) > .node-content > .node-icon.folder-icon { transform: rotate(90deg); } .tree-node.collapsed > .tree-node-children { display: none; }
+        .tree-node.filtered-out { display: none; }
+        .node-content .highlight { background-color: var(--search-highlight-bg); color: var(--search-highlight-text); border-radius: 2px; padding: 0 2px; font-weight: bold; }
+
+        /* Tag/TODO Styles */
+        .tag-item { display: inline-block; background-color: var(--ctp-surface0); padding: 2px 6px; margin: 2px; border-radius: 10px; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; color: var(--ctp-blue); font-size: 0.85em; }
+        .tag-item:hover { background-color: var(--hover-bg); }
+        .tag-item.active-filter { background-color: var(--active-filter-tag-bg); color: var(--active-filter-tag-text); font-weight: bold; }
+        .todo-item { display: flex; align-items: flex-start; margin-bottom: 4px; padding: 2px 0;}
+        .todo-item.filtered-out { display: none; }
+        .todo-item input[type="checkbox"] { margin-right: 8px; margin-top: 4px; flex-shrink: 0; accent-color: var(--ctp-mauve); cursor: pointer; }
+        .todo-item label { flex-grow: 1; display: flex; align-items: center; cursor: pointer;} .todo-item-text { flex-grow: 1; font-size: 0.9em; }
+        .todo-item.completed label { text-decoration: line-through; color: var(--ctp-overlay1); }
+        .todo-source { font-size: 0.8em; color: var(--ctp-overlay0); margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; flex-shrink: 0; }
+        .todo-item-text .highlight { background-color: var(--search-highlight-bg); color: var(--search-highlight-text); border-radius: 2px; padding: 0 2px; }
+
+        /* --- Main Content, Editor, Preview, etc. --- */
+        #main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; } #editor-controls { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid var(--border-color); background-color: var(--bg-color); } #current-file-info { color: var(--text-color-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; margin-right: 10px; font-size: 0.9em; } #editor-area { flex-grow: 1; position: relative; background-color: var(--editor-bg); display: flex; overflow: hidden; } #editor, #preview { flex-grow: 1; padding: 20px; color: var(--text-color); font-size: 1rem; overflow-y: auto; line-height: 1.6; } #editor { outline: none; resize: none; font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; white-space: pre-wrap; caret-color: var(--cursor-color); } #preview { white-space: normal; font-family: inherit; display: none; } #preview > *:first-child { margin-top: 0; } #preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6 { color: var(--preview-heading-color); margin-top: 1.4em; margin-bottom: 0.6em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border-color);} #preview h1 { font-size: 1.8em; } #preview h2 { font-size: 1.5em; } #preview h3 { font-size: 1.3em; } #preview p { margin-bottom: 1em; } #preview a { color: var(--link-color); text-decoration: none; } #preview a:hover { text-decoration: underline; } #preview code { background-color: var(--code-bg); color: var(--inline-code-text); padding: 0.2em 0.4em; margin: 0 2px; border-radius: 3px; font-family: 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; font-size: 0.9em; } #preview pre { background-color: var(--code-bg); padding: 15px; border-radius: 4px; overflow-x: auto; border: 1px solid var(--border-color); margin-bottom: 1em; } #preview pre code { background-color: transparent; color: var(--text-color); padding: 0; margin: 0; border-radius: 0; font-size: 0.9em; } #preview ul, #preview ol { margin-left: 25px; margin-bottom: 1em; } #preview li { margin-bottom: 0.5em; } #preview blockquote { border-left: 4px solid var(--preview-blockquote-border); margin: 1.5em 0; padding: 0.5em 1.2em; color: var(--preview-blockquote-text); background-color: var(--code-bg); } #preview blockquote > *:first-child { margin-top: 0; } #preview blockquote > *:last-child { margin-bottom: 0; } #preview table { border-collapse: collapse; width: auto; margin-bottom: 1.5em; border: 1px solid var(--border-color); } #preview th, #preview td { border: 1px solid var(--border-color); padding: 8px 12px; } #preview th { background-color: var(--code-bg); font-weight: 600; } #preview hr { border: 0; border-top: 1px solid var(--border-color); margin: 2em 0; } #preview img { max-width: 100%; height: auto; } #editor:empty:before { content: attr(placeholder); color: var(--text-color-subtle); pointer-events: none; position: absolute; top: 20px; left: 20px; font-style: italic; }
+        button { padding: 6px 12px; background-color: var(--button-bg); color: var(--button-text); border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-left: 5px; flex-shrink: 0; transition: background-color 0.15s ease; font-weight: 500; } button:hover { background-color: var(--hover-bg); } button:disabled { background-color: var(--ctp-surface0); color: var(--ctp-overlay0); cursor: not-allowed; opacity: 0.6; } body.zen-mode #sidebar { width: 0; opacity: 0; padding-left: 0; padding-right: 0; border: none; overflow: hidden; }
+        ::-webkit-scrollbar { width: 9px; height: 9px; } ::-webkit-scrollbar-track { background: var(--scrollbar-track-bg); } ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-bg); border-radius: 5px; border: 2px solid var(--scrollbar-track-bg); } ::-webkit-scrollbar-thumb:hover { background: var(--ctp-surface2); } ::-webkit-scrollbar-corner { background: var(--scrollbar-track-bg); }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <div id="sidebar-header-buttons">
+                <button id="open-folder-btn" title="Open Folder">📂 Open</button>
+                 <!-- Removed reopen buttons, logic handled in attemptRestore -->
+            </div>
+            <input type="search" id="search-bar" placeholder="Search notes (regex)..." disabled>
+             <div id="reopen-prompt"> <!-- Prompt only, no buttons here -->
+                <span>Attempting to restore folder...</span>
+            </div>
+        </div>
+        <div class="sidebar-section files" id="files-section-container">
+             <!-- Ensure data-target exists for section toggle logic -->
+            <div class="sidebar-section-header" data-target="file-list-content">
+                <span class="sidebar-section-toggle">▼</span>
+                Files
+                <button class="filter-clear-btn" id="clear-filter-btn" title="Clear active filter/search">✕ Clear</button>
+            </div>
+            <div class="sidebar-section-content" id="file-list-content">
+                <div id="file-list"><p>No folder selected.</p></div>
+            </div>
+        </div>
+        <div class="sidebar-section collapsed" id="tags-section-container">
+             <!-- Ensure data-target exists for section toggle logic -->
+            <div class="sidebar-section-header" data-target="tag-list-content"><span class="sidebar-section-toggle">▶</span> Tags</div>
+            <div class="sidebar-section-content" id="tag-list-content">
+                <div id="tag-list"><span class="placeholder">(No folder open)</span></div>
+            </div>
+        </div>
+         <div class="sidebar-section collapsed" id="todos-section-container">
+              <!-- Ensure data-target exists for section toggle logic -->
+            <div class="sidebar-section-header" data-target="todo-list-content"><span class="sidebar-section-toggle">▶</span> TODOs</div>
+            <div class="sidebar-section-content" id="todo-list-content">
+                <div id="todo-list"><span class="placeholder">(No folder open)</span></div>
+            </div>
+        </div>
+    </div>
+    <div id="main-content">
+        <div id="editor-controls">
+            <div id="current-file-info">No file selected</div>
+            <div>
+                <button id="toggle-focus-btn" title="Toggle Focus Mode (Show/Hide Sidebar)">🧘 Zen</button>
+                <button id="save-btn" disabled title="Save (Ctrl+S) / Save As...">💾 Save</button>
+                <button id="toggle-view-btn" disabled title="Toggle Edit/Preview Mode">👁️‍🗨️ Toggle</button>
+            </div>
+        </div>
+        <div id="editor-area">
+            <div id="editor" contenteditable="true" spellcheck="false" placeholder="Select or create a note..."></div>
+            <div id="preview"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global State ---
+        let directoryHandle = null;
+        let currentFileHandle = null;
+        let fileTree = null;
+        let isDirty = false;
+        let currentView = 'editor';
+        let activeTreeNodeElement = null;
+        let allTags = new Set();
+        let allTodos = [];
+        let fileMetadata = new Map();
+        let throttleTimer = null;
+        let searchDebounceTimer = null;
+        let activeFilter = { type: null, value: null };
+        let isInitialized = false; // Flag to prevent premature actions
+
+        // --- DOM Elements ---
+        const sidebar = document.getElementById('sidebar');
+        const openFolderBtn = document.getElementById('open-folder-btn');
+        const searchBar = document.getElementById('search-bar');
+        const reopenPrompt = document.getElementById('reopen-prompt');
+        // Removed reopen button elements, they are no longer used
+        const clearFilterBtn = document.getElementById('clear-filter-btn');
+        const fileListDiv = document.getElementById('file-list');
+        const tagListDiv = document.getElementById('tag-list');
+        const todoListDiv = document.getElementById('todo-list');
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const currentFileInfoDiv = document.getElementById('current-file-info');
+        const saveBtn = document.getElementById('save-btn');
+        const toggleViewBtn = document.getElementById('toggle-view-btn');
+        const toggleFocusBtn = document.getElementById('toggle-focus-btn');
+
+        // --- IndexedDB Constants ---
+        const DB_NAME = 'FortressNotesDB';
+        const DB_VERSION = 1;
+        const STORE_SETTINGS = 'settings';
+        const KEY_LAST_HANDLE = 'lastDirectoryHandle';
+        const KEY_ZEN_MODE = 'zenModeActive';
+        let db = null;
+
+        // --- Event Listeners ---
+        // Attach listeners in init() *after* basic setup and DOM ready
+        function attachCoreListeners() {
+            openFolderBtn.addEventListener('click', openFolder);
+            searchBar.addEventListener('input', handleSearchInput);
+            clearFilterBtn.addEventListener('click', clearAllFilters);
+            sidebar.addEventListener('click', handleSidebarClick);
+            editor.addEventListener('input', handleEditorInput);
+            saveBtn.addEventListener('click', handleSaveClick);
+            toggleViewBtn.addEventListener('click', toggleView);
+            toggleFocusBtn.addEventListener('click', toggleFocusMode);
+            document.addEventListener('keydown', handleGlobalKeyDown);
+            editor.addEventListener('paste', handleEditorPaste);
+            todoListDiv.addEventListener('change', handleTodoCheckboxChange); // Delegated
+            console.log("Core event listeners attached.");
+        }
+
+        function handleGlobalKeyDown(e) {
+             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                 e.preventDefault();
+                 handleSaveClick();
+             }
+         }
+
+        function handleEditorPaste(e) {
+             e.preventDefault();
+             const text = e.clipboardData.getData('text/plain');
+             document.execCommand('insertText', false, text);
+         }
+
+
+        // --- Initialization ---
+        async function init() {
+            console.log("Initializing FortressNotes...");
+            isInitialized = false; // Mark as not ready yet
+
+            // Basic API checks
+            if (!window.showDirectoryPicker || !window.FileSystemHandle || !window.indexedDB) {
+                alert('Critical browser APIs (File System Access, IndexedDB) are missing or disabled. FortressNotes cannot function.');
+                disableCoreFunctionality();
+                return; // Stop initialization
+            }
+
+            // Marked.js check
+            if (typeof marked === 'undefined') {
+                console.warn("Marked.js library not found. Preview functionality will be disabled.");
+                toggleViewBtn.title = "Preview unavailable (Marked.js missing)";
+                toggleViewBtn.disabled = true;
+            } else {
+                marked.setOptions({ breaks: true, gfm: true, pedantic: false, sanitize: false });
+            }
+
+            resetEditorState(); // Set initial UI state
+            setView('editor');
+            renderTags(); // Render empty placeholders
+            renderTodos();
+
+            // Attach core listeners *before* potentially async DB/restore operations
+            // This ensures buttons work even if DB fails or restore is slow/needs prompt
+             attachCoreListeners();
+
+            // Try to open DB and restore session
+            try {
+                db = await openDatabase();
+                console.log("Database opened successfully.");
+                await loadSettings(); // Load preferences (Zen mode)
+                await attemptRestoreLastFolder(); // Try to reopen folder async
+            } catch (error) {
+                console.error("Failed during DB initialization or folder restore:", error);
+                // Don't alert here, as core functionality should still work
+                // The attemptRestoreLastFolder function handles its own errors/prompts
+            }
+
+            // Ensure Zen button is enabled (if not disabled by API check)
+            if (!toggleFocusBtn.disabled) {
+                 toggleFocusBtn.disabled = false;
+            }
+
+            isInitialized = true; // Mark as initialized
+            console.log("FortressNotes initialization sequence complete.");
+        }
+
+        function disableCoreFunctionality() {
+            // ... (unchanged) ...
+            openFolderBtn.disabled = true;
+            searchBar.disabled = true;
+            toggleFocusBtn.disabled = true;
+            saveBtn.disabled = true;
+            toggleViewBtn.disabled = true;
+            editor.contentEditable = false;
+            editor.setAttribute('placeholder', 'Browser API Error - Cannot Load Notes');
+            fileListDiv.innerHTML = '<p>Error: Missing APIs.</p>';
+            tagListDiv.innerHTML = '<span class="placeholder">(Error)</span>';
+            todoListDiv.innerHTML = '<span class="placeholder">(Error)</span>';
+        }
+
+        // --- IndexedDB Functions ---
+        // ... (openDatabase, getSetting, saveSetting, loadSettings are unchanged) ...
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) return reject("IndexedDB API not available");
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    try {
+                        const dbInstance = event.target.result;
+                        if (!dbInstance.objectStoreNames.contains(STORE_SETTINGS)) {
+                            dbInstance.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
+                            console.log(`Object store '${STORE_SETTINGS}' created.`);
+                        }
+                    } catch (e) {
+                         console.error("Error during DB upgrade:", e);
+                         reject(e); // Propagate error
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+
+                request.onerror = (event) => {
+                    console.error("Database error:", event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        function getSetting(key) {
+            return new Promise((resolve, reject) => {
+                if (!db) return reject("Database not initialized");
+                try {
+                    const transaction = db.transaction([STORE_SETTINGS], 'readonly');
+                    const store = transaction.objectStore(STORE_SETTINGS);
+                    const request = store.get(key);
+
+                    request.onsuccess = (event) => {
+                        resolve(event.target.result ? event.target.result.value : undefined);
+                    };
+                    request.onerror = (event) => {
+                        console.error(`Error getting setting '${key}':`, event.target.error);
+                        reject(event.target.error);
+                    };
+                     transaction.onerror = (event) => { // Catch transaction errors too
+                         console.error(`Read transaction error for setting '${key}':`, event.target.error);
+                         reject(event.target.error);
+                     };
+                } catch (e) {
+                     console.error(`Error creating transaction for getSetting '${key}':`, e);
+                     reject(e);
+                }
+            });
+        }
+
+        function saveSetting(key, value) {
+            return new Promise((resolve, reject) => {
+                if (!db) return reject("Database not initialized");
+                 try {
+                    const transaction = db.transaction([STORE_SETTINGS], 'readwrite');
+                    const store = transaction.objectStore(STORE_SETTINGS);
+                    const request = store.put({ key, value });
+
+                    request.onsuccess = () => {
+                        resolve();
+                    };
+                    request.onerror = (event) => {
+                        console.error(`Error saving setting '${key}':`, event.target.error);
+                        reject(event.target.error);
+                    };
+                     transaction.onerror = (event) => { // Catch transaction errors
+                         console.error(`Write transaction error for setting '${key}':`, event.target.error);
+                         reject(event.target.error);
+                     };
+                     transaction.oncomplete = () => { // Ensure transaction completed
+                         resolve();
+                     };
+                 } catch (e) {
+                     console.error(`Error creating transaction for saveSetting '${key}':`, e);
+                     reject(e);
+                 }
+            });
+        }
+
+        async function loadSettings() {
+             if (!db) {
+                 console.warn("Cannot load settings, DB not available.");
+                 return;
+             }
+            try {
+                const zenMode = await getSetting(KEY_ZEN_MODE);
+                if (zenMode === true) {
+                    setFocusMode(true); // Apply Zen mode state
+                }
+            } catch (error) {
+                console.warn("Could not load settings from DB:", error);
+            }
+        }
+
+        // Revised attemptRestoreLastFolder using query/request flow
+        async function attemptRestoreLastFolder() {
+            if (!db) {
+                 console.log("DB not available, skipping folder restore attempt.");
+                 reopenPrompt.style.display = 'none'; // Hide prompt if shown
+                 return;
+            }
+            let savedHandle = null;
+            try {
+                savedHandle = await getSetting(KEY_LAST_HANDLE);
+
+                if (savedHandle && savedHandle instanceof FileSystemDirectoryHandle) {
+                    console.log("Found saved directory handle. Querying permission...");
+                    reopenPrompt.style.display = 'block'; // Show prompt while checking
+                    reopenPrompt.textContent = `Checking permissions for ${savedHandle.name}...`;
+
+
+                    const permissionStatus = await savedHandle.queryPermission({ mode: 'readwrite' });
+
+                    if (permissionStatus === 'granted') {
+                        console.log("Permission already granted. Restoring session...");
+                        reopenPrompt.textContent = `Restoring ${savedHandle.name}...`;
+                        await initializeWithHandle(savedHandle);
+                        reopenPrompt.style.display = 'none'; // Hide on success
+                    } else if (permissionStatus === 'prompt') {
+                        console.log("Permission requires prompt. Requesting...");
+                        reopenPrompt.textContent = `Requesting access to ${savedHandle.name}...`;
+                        try {
+                            const userPermission = await savedHandle.requestPermission({ mode: 'readwrite' });
+                            if (userPermission === 'granted') {
+                                console.log("Permission granted by user. Restoring session...");
+                                reopenPrompt.textContent = `Restoring ${savedHandle.name}...`;
+                                await initializeWithHandle(savedHandle);
+                                reopenPrompt.style.display = 'none'; // Hide on success
+                            } else {
+                                console.log("User denied permission request.");
+                                reopenPrompt.textContent = "Permission denied. Open manually.";
+                                // Optionally keep prompt visible briefly or hide after delay
+                                setTimeout(() => { reopenPrompt.style.display = 'none'; }, 2000);
+                                // Clear the handle from DB as user explicitly denied
+                                try { await saveSetting(KEY_LAST_HANDLE, null); } catch {}
+                            }
+                        } catch (requestErr) {
+                             console.error("Error requesting permission:", requestErr);
+                             reopenPrompt.textContent = "Error requesting permission.";
+                             setTimeout(() => { reopenPrompt.style.display = 'none'; }, 2000);
+                             try { await saveSetting(KEY_LAST_HANDLE, null); } catch {}
+                        }
+                    } else { // permissionStatus === 'denied'
+                        console.log("Permission denied previously. Manual open required.");
+                        reopenPrompt.textContent = `Permission for ${savedHandle.name} was denied. Open manually.`;
+                        setTimeout(() => { reopenPrompt.style.display = 'none'; }, 2500);
+                        // Clear the handle from DB
+                        try { await saveSetting(KEY_LAST_HANDLE, null); } catch {}
+                    }
+                } else {
+                    console.log("No valid saved directory handle found.");
+                    reopenPrompt.style.display = 'none'; // Ensure hidden if no handle
+                }
+            } catch (error) {
+                console.error("Error attempting to restore last folder:", error);
+                reopenPrompt.textContent = "Error restoring folder.";
+                 setTimeout(() => { reopenPrompt.style.display = 'none'; }, 2000);
+                // Clear potentially corrupted handle on error
+                if (savedHandle) { // Only clear if we actually retrieved one
+                     try { await saveSetting(KEY_LAST_HANDLE, null); } catch {}
+                }
+            }
+        }
+
+        // --- Folder/File Handling ---
+        async function openFolder() {
+            console.log("Attempting to open folder via picker...");
+            if (!isInitialized) { console.warn("Open folder called before init complete."); return; }
+            try {
+                const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                 // Request permission immediately after getting handle (often silent if granted)
+                 if (await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
+                    alert('Read and write permissions are required to use this folder.');
+                    return;
+                 }
+                await initializeWithHandle(handle); // Initialize with the newly picked handle
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Error opening folder:', err);
+                    alert(`Error opening folder: ${err.message}`);
+                } else {
+                    console.log("Folder open cancelled by user.");
+                }
+            }
+        }
+
+        async function initializeWithHandle(handle) {
+            // ... (unchanged - sets handle, saves to DB, resets UI, calls build/scan) ...
+            console.log(`Initializing with handle: ${handle.name}`);
+            directoryHandle = handle; // Set the global handle
+
+            // Persist the handle in IndexedDB
+            try {
+                await saveSetting(KEY_LAST_HANDLE, directoryHandle);
+                console.log("Directory handle saved to IndexedDB.");
+            } catch (dbError) {
+                console.error("Failed to save directory handle to IndexedDB:", dbError);
+            }
+
+            resetEditorState(); // Reset editor, clear active node etc.
+            clearMetadata(); // Clear previous folder's data (tags, todos, cache)
+            searchBar.disabled = false; // Enable search now that folder is open
+            fileListDiv.innerHTML = '<p>Loading notes...</p>'; // Provide feedback
+
+            try {
+                console.log("Building file tree...");
+                await buildFileTree(); // Builds the tree structure
+                console.log("Scanning files for metadata (tags, todos)...");
+                await scanAllFilesForMetadata(); // Parses content
+                console.log("Folder initialization complete.");
+            } catch (error) {
+                console.error('Error during folder initialization process:', error);
+                alert(`Error loading folder contents: ${error.message}`);
+                fileListDiv.innerHTML = '<p>Error loading notes.</p>';
+                resetEditorState(); // Reset fully on error
+                clearMetadata();
+                renderTags();
+                renderTodos();
+                directoryHandle = null; // Clear handle on error
+                fileTree = null;
+                searchBar.disabled = true;
+                try { await saveSetting(KEY_LAST_HANDLE, null); } catch {} // Clear saved handle on error
+            }
+        }
+
+        async function buildFileTree() {
+            // ... (unchanged) ...
+            if (!directoryHandle) return;
+             fileListDiv.innerHTML = '<p>Building file tree...</p>';
+             try {
+                 fileTree = await readDirectoryRecursive(directoryHandle);
+                 renderFileTreeUI(fileTree, fileListDiv);
+                 console.log("File tree built and rendered.");
+             } catch (error) {
+                 console.error("Tree build error:", error);
+                 fileListDiv.innerHTML = `<p>Error building file tree: ${error.message}</p>`;
+                 fileTree = null;
+                 clearMetadata(); renderTags(); renderTodos();
+                 throw error;
+             }
+        }
+
+        async function readDirectoryRecursive(dirHandle) {
+            // ... (unchanged) ...
+            const entries = [];
+            try {
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        if (entry.name.endsWith('.md') && !entry.name.startsWith('.')) {
+                            entries.push({ handle: entry, name: entry.name, type: 'file' });
+                        }
+                    } else if (entry.kind === 'directory') {
+                        if (!entry.name.startsWith('.')) {
+                            const children = await readDirectoryRecursive(entry);
+                            if (children.length > 0 || await directoryContainsMarkdown(entry, false)) {
+                                entries.push({ handle: entry, name: entry.name, type: 'folder', children: children });
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error(`Error reading directory ${dirHandle.name}:`, e);
+                throw new Error(`Failed to read directory "${dirHandle.name}". Check permissions. Original error: ${e.message}`);
+            }
+            entries.sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                return a.name.localeCompare(b.name);
+            });
+            return entries;
+        }
+
+        async function directoryContainsMarkdown(dirHandle, checkSubdirs = true) {
+            // ... (unchanged) ...
+            try {
+                 for await (const entry of dirHandle.values()) {
+                     if (entry.kind === 'file' && entry.name.endsWith('.md') && !entry.name.startsWith('.')) {
+                         return true;
+                     } else if (checkSubdirs && entry.kind === 'directory' && !entry.name.startsWith('.')) {
+                         if (await directoryContainsMarkdown(entry, true)) {
+                             return true;
+                         }
+                     }
+                 }
+             } catch (e) {
+                 console.warn(`Could not check contents of ${dirHandle.name}:`, e);
+                 return false;
+             }
+             return false;
+         }
+
+        // --- UI Rendering Functions ---
+
+        function renderFileTreeUI(nodesToRender, containerElement, filter = null) {
+            // ... (unchanged - handles filtering display) ...
+             containerElement.innerHTML = '';
+            const rootUl = document.createElement('ul');
+            rootUl.classList.add('tree-root');
+
+            if (!nodesToRender || nodesToRender.length === 0) {
+                 if (directoryHandle) {
+                    containerElement.innerHTML = '<p>No markdown notes found.</p>';
+                 } else {
+                     containerElement.innerHTML = '<p>No folder selected.</p>';
+                 }
+                return;
+            }
+
+            let foundVisibleNodes = false;
+            nodesToRender.forEach(node => {
+                 if (renderSingleTreeNode(node, rootUl, 0, filter)) {
+                    foundVisibleNodes = true;
+                 }
+            });
+
+            if (!foundVisibleNodes && filter?.type) {
+                 containerElement.innerHTML = '<p>No matching notes found.</p>';
+            } else if (foundVisibleNodes) {
+                 containerElement.appendChild(rootUl);
+            } else if (!filter?.type && directoryHandle) {
+                 containerElement.innerHTML = '<p>No markdown notes found.</p>';
+            } else if (!directoryHandle){
+                 containerElement.innerHTML = '<p>No folder selected.</p>';
+            }
+
+            clearFilterBtn.style.display = filter?.type ? 'inline-block' : 'none';
+        }
+
+        function renderSingleTreeNode(node, containerUlElement, level, filter) {
+             // ... (unchanged - recursive rendering logic) ...
+            let isVisible = !filter?.type;
+             let selfMatches = false;
+             let childrenVisible = false;
+
+             if (filter?.type) {
+                 if (filter.type === 'tag') {
+                     const nodeMeta = fileMetadata.get(node.handle);
+                     if (node.type === 'file' && nodeMeta?.tags?.has(filter.value)) {
+                         isVisible = true;
+                         selfMatches = true;
+                     }
+                 } else if (filter.type === 'search') {
+                    const regex = filter.value;
+                    if (node.name && regex.test(node.name)) { // Check node.name exists
+                         isVisible = true;
+                         selfMatches = true;
+                    }
+                    if (node.type === 'file') {
+                        const nodeMeta = fileMetadata.get(node.handle);
+                        if (nodeMeta?.content && regex.test(nodeMeta.content)) {
+                             isVisible = true;
+                             selfMatches = true;
+                        }
+                    }
+                 }
+             }
+
+            const nodeLiElement = document.createElement('li');
+            nodeLiElement.classList.add('tree-node');
+            nodeLiElement.dataset.name = node.name;
+
+            const contentElement = document.createElement('div');
+            contentElement.classList.add('node-content');
+            contentElement.dataset.type = node.type;
+            const levelColorVar = `--level-${level % 7}-color`;
+            contentElement.style.setProperty('--level-color', `var(${levelColorVar})`);
+
+            const iconElement = document.createElement('span');
+            iconElement.classList.add('node-icon');
+
+            let nodeDisplayName = node.name || '[Unnamed Entry]'; // Handle missing name
+             if (filter?.type === 'search' && selfMatches && filter.value instanceof RegExp && filter.value.test(nodeDisplayName)) {
+                 filter.value.lastIndex = 0;
+                 nodeDisplayName = nodeDisplayName.replace(filter.value, '<span class="highlight">$&</span>');
+             }
+
+            let childrenUlElement = null;
+            if (node.type === 'folder') {
+                iconElement.classList.add('folder-icon');
+                contentElement.dataset.handleKind = 'directory';
+                childrenUlElement = document.createElement('ul');
+                childrenUlElement.classList.add('tree-node-children');
+
+                if (node.children?.length > 0) {
+                    node.children.forEach(childNode => {
+                        if (renderSingleTreeNode(childNode, childrenUlElement, level + 1, filter)) {
+                            childrenVisible = true;
+                        }
+                    });
+                }
+                 if (childrenVisible || (selfMatches && filter?.type === 'search')) { // Folders visible if name matches search OR children visible
+                     isVisible = true;
+                 }
+            } else {
+                iconElement.textContent = '📄';
+                contentElement.dataset.handleKind = 'file';
+                 if (node.handle) { // Ensure handle exists before setting key
+                    contentElement.dataset.fileHandleKey = node.handle.name;
+                 }
+            }
+
+            if (isVisible) {
+                contentElement.appendChild(iconElement);
+                 const nameSpan = document.createElement('span');
+                 nameSpan.innerHTML = ` ${nodeDisplayName}`;
+                 contentElement.appendChild(nameSpan);
+                nodeLiElement.appendChild(contentElement);
+
+                if (node.type === 'folder' && childrenUlElement) {
+                     const shouldExpand = (filter?.type && childrenVisible) || (nodeLiElement.classList.contains('active')); // Expand if filtering or active parent
+                     nodeLiElement.classList.toggle('collapsed', !shouldExpand);
+                     iconElement.textContent = shouldExpand ? '▼' : '▶';
+                     if (childrenVisible) {
+                        nodeLiElement.appendChild(childrenUlElement);
+                     } else if (selfMatches) {
+                         // Show collapsed folder if name matches search but no children match
+                         nodeLiElement.classList.add('collapsed');
+                         iconElement.textContent = '▶';
+                     }
+                }
+
+                if (node.type === 'file' && currentFileHandle && node.handle?.name === currentFileHandle.name) {
+                     nodeLiElement.classList.add('active');
+                     activeTreeNodeElement = nodeLiElement;
+                     let parentLi = nodeLiElement.parentElement?.closest('.tree-node');
+                     while(parentLi) {
+                         if (parentLi.classList.contains('collapsed')) {
+                             parentLi.classList.remove('collapsed');
+                             const parentIcon = parentLi.querySelector('.node-icon.folder-icon');
+                             if(parentIcon) parentIcon.textContent = '▼';
+                         }
+                         parentLi = parentLi.parentElement?.closest('.tree-node');
+                     }
+                }
+                containerUlElement.appendChild(nodeLiElement);
+                return true;
+            }
+            return false;
+        }
+
+        function renderTags() {
+            // ... (unchanged - includes active filter highlighting) ...
+            tagListDiv.innerHTML = '';
+            if (!directoryHandle) {
+                tagListDiv.innerHTML = '<span class="placeholder">(No folder open)</span>';
+                return;
+            }
+            if (allTags.size === 0) {
+                tagListDiv.innerHTML = '<span class="placeholder">(No tags found)</span>';
+                return;
+            }
+
+            const sortedTags = Array.from(allTags).sort((a, b) => a.localeCompare(b));
+            sortedTags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.classList.add('tag-item');
+                tagElement.textContent = `#${tag}`;
+                tagElement.dataset.tag = tag;
+                 if (activeFilter.type === 'tag' && activeFilter.value === tag) {
+                    tagElement.classList.add('active-filter');
+                 }
+                tagListDiv.appendChild(tagElement);
+            });
+        }
+
+        function renderTodos(filter = null) {
+            // ... (unchanged - includes filtering display) ...
+            todoListDiv.innerHTML = '';
+             if (!directoryHandle) {
+                 todoListDiv.innerHTML = '<span class="placeholder">(No folder open)</span>';
+                 return;
+             }
+
+             let visibleTodos = 0;
+             // Assign stable index *before* sorting/filtering
+             allTodos.forEach((todo, index) => todo.currentIndex = index);
+
+             // Filter first based on activeFilter
+             const filteredTodos = allTodos.filter(todo => {
+                 if (!filter?.type) return true; // No filter = visible
+                 if (filter.type === 'tag') {
+                      const todoMeta = fileMetadata.get(todo.fileHandle);
+                      return todoMeta?.tags?.has(filter.value);
+                 } else if (filter.type === 'search') {
+                      const regex = filter.value;
+                      return (todo.text && regex.test(todo.text)) || regex.test(todo.fileName);
+                 }
+                 return true; // Default visible if filter type unknown
+             });
+
+             // Sort the *filtered* list
+             filteredTodos.sort((a, b) => {
+                 if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                 const fileCompare = a.fileName.localeCompare(b.fileName);
+                 if (fileCompare !== 0) return fileCompare;
+                 return a.currentIndex - b.currentIndex; // Use stable index for tie-breaking
+             });
+
+
+             filteredTodos.forEach((todo) => {
+                 visibleTodos++;
+                 const todoElement = document.createElement('div');
+                 todoElement.classList.add('todo-item');
+                 if (todo.completed) todoElement.classList.add('completed');
+                 todoElement.dataset.todoIndex = todo.currentIndex; // Use the stable index
+
+                 const checkbox = document.createElement('input');
+                 checkbox.type = 'checkbox';
+                 checkbox.checked = todo.completed;
+                 checkbox.dataset.todoIndex = todo.currentIndex;
+
+                 const label = document.createElement('label');
+                 const textSpan = document.createElement('span');
+                 textSpan.classList.add('todo-item-text');
+
+                  let todoTextDisplay = todo.text || '';
+                  if (filter?.type === 'search' && filter.value instanceof RegExp && filter.value.test(todoTextDisplay)) {
+                      filter.value.lastIndex = 0;
+                       todoTextDisplay = todoTextDisplay.replace(filter.value, '<span class="highlight">$&</span>');
+                  }
+                 textSpan.innerHTML = todoTextDisplay;
+
+                 const sourceSpan = document.createElement('span');
+                 sourceSpan.classList.add('todo-source');
+                 sourceSpan.textContent = `(${todo.fileName})`;
+                 sourceSpan.title = todo.fileName;
+
+                 label.appendChild(textSpan);
+                 label.appendChild(sourceSpan);
+                 todoElement.appendChild(checkbox);
+                 todoElement.appendChild(label);
+                 todoListDiv.appendChild(todoElement);
+             });
+
+              if (visibleTodos === 0 && allTodos.length > 0) {
+                 todoListDiv.innerHTML = '<span class="placeholder">(No TODOs match filter)</span>';
+             } else if (allTodos.length === 0 && directoryHandle) {
+                 todoListDiv.innerHTML = '<span class="placeholder">(No TODOs found)</span>';
+             } else if (!directoryHandle) {
+                 todoListDiv.innerHTML = '<span class="placeholder">(No folder open)</span>';
+             }
+         }
+
+
+        // --- Sidebar Interaction ---
+        function handleSidebarClick(event) {
+             // Check specific interactive elements first
+             const tagItem = event.target.closest('.tag-item');
+             const todoLabel = event.target.closest('.todo-item label');
+             const treeNodeContent = event.target.closest('.node-content');
+             const sectionHeader = event.target.closest('.sidebar-section-header');
+
+             // Explicitly ignore clicks on the clear button (handled separately)
+             if (event.target.closest('.filter-clear-btn')) {
+                 return;
+             }
+
+             if (tagItem) {
+                 handleTagClick(tagItem);
+             } else if (todoLabel && event.target.type !== 'checkbox') {
+                 handleTodoItemClick(todoLabel.closest('.todo-item'));
+             } else if (treeNodeContent) {
+                 handleTreeClick(treeNodeContent);
+             } else if (sectionHeader) {
+                 // Only toggle section if the click was directly on header or its non-interactive children (like the toggle icon)
+                 toggleSidebarSection(sectionHeader.closest('.sidebar-section'));
+             }
+        }
+
+        function toggleSidebarSection(section) {
+            if (!section) return;
+            const isCollapsed = section.classList.toggle('collapsed');
+            const toggleIcon = section.querySelector('.sidebar-section-toggle');
+            if (toggleIcon) {
+                toggleIcon.textContent = isCollapsed ? '▶' : '▼';
+            }
+            console.log(`Section ${section.id} ${isCollapsed ? 'collapsed' : 'expanded'}`);
+        }
+
+        async function handleTreeClick(contentElement) {
+            // ... (unchanged) ...
+            const nodeLiElement = contentElement.closest('.tree-node');
+            if (!nodeLiElement) return;
+            const type = contentElement.dataset.type;
+
+            if (type === 'folder') {
+                const isCollapsed = nodeLiElement.classList.toggle('collapsed');
+                const icon = contentElement.querySelector('.node-icon.folder-icon');
+                if (icon) icon.textContent = isCollapsed ? '▶' : '▼';
+            } else if (type === 'file') {
+                const fileHandleKey = contentElement.dataset.fileHandleKey;
+                if (!fileHandleKey) {
+                    console.error("Tree node clicked, but missing file handle key.", contentElement);
+                    return;
+                }
+                const fileHandle = findHandleInTreeByKey(fileTree, fileHandleKey);
+
+                if (fileHandle) {
+                    if (isDirty && !window.confirm("Discard unsaved changes?")) { return; }
+                    await loadFile(fileHandle);
+                    if (activeTreeNodeElement && activeTreeNodeElement !== nodeLiElement) {
+                         activeTreeNodeElement.classList.remove('active');
+                    }
+                    nodeLiElement.classList.add('active');
+                    activeTreeNodeElement = nodeLiElement;
+                } else {
+                    console.error("Could not find file handle for key:", fileHandleKey);
+                    alert("Error: Could not find the selected file's handle.");
+                }
+            }
+        }
+
+        async function handleTodoItemClick(todoElement) {
+            // ... (unchanged) ...
+             if (!todoElement) return;
+            const todoIndex = parseInt(todoElement.dataset.todoIndex, 10);
+            const clickedTodo = allTodos.find(todo => todo.currentIndex === todoIndex);
+
+            if (clickedTodo?.fileHandle) {
+                 if (isDirty && !window.confirm("Discard unsaved changes?")) { return; }
+                 await loadFile(clickedTodo.fileHandle);
+                 const nodeElement = findNodeElementByKey(fileListDiv, clickedTodo.fileHandle.name);
+                 if(nodeElement) {
+                     if (activeTreeNodeElement && activeTreeNodeElement !== nodeElement) {
+                         activeTreeNodeElement.classList.remove('active');
+                     }
+                     nodeElement.classList.add('active');
+                     activeTreeNodeElement = nodeElement;
+                     activeTreeNodeElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                 } else {
+                    if (activeTreeNodeElement) activeTreeNodeElement.classList.remove('active');
+                    activeTreeNodeElement = null;
+                 }
+            } else {
+                console.error("Could not find data or file handle for TODO:", todoIndex, clickedTodo);
+                alert("Error navigating to TODO source.");
+            }
+        }
+
+        function handleTagClick(tagElement) {
+             // ... (unchanged - handles toggling filter and calling applyFilters) ...
+            const tagName = tagElement.dataset.tag;
+            if (!tagName) return;
+
+            if (tagElement.classList.contains('active-filter')) {
+                console.log(`Clearing tag filter: #${tagName}`);
+                clearAllFilters();
+            } else {
+                console.log(`Filtering by tag: #${tagName}`);
+                activeFilter = { type: 'tag', value: tagName };
+                applyFilters();
+            }
+        }
+
+        // --- Search and Filtering ---
+        function handleSearchInput() {
+             // ... (unchanged - handles debouncing and regex) ...
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                const searchTerm = searchBar.value.trim();
+                if (searchTerm === "") {
+                    // Clearing search bar always clears all filters in this model
+                    clearAllFilters();
+                } else {
+                     try {
+                        let regex;
+                        const regexLiteralMatch = searchTerm.match(/^\/(.+)\/([gimyus]*)$/);
+                        if (regexLiteralMatch) {
+                            const flags = regexLiteralMatch[2] || 'i';
+                            const finalFlags = flags.includes('i') ? flags : flags + 'i';
+                            regex = new RegExp(regexLiteralMatch[1], finalFlags);
+                        } else {
+                             const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                             regex = new RegExp(escapedTerm, 'i');
+                        }
+                        console.log(`Searching with regex: ${regex}`);
+                        activeFilter = { type: 'search', value: regex };
+                        applyFilters();
+                    } catch (e) {
+                        console.error("Invalid Regex:", e.message);
+                         alert(`Invalid regular expression: ${e.message}`);
+                         activeFilter = { type: null, value: null};
+                         applyFilters();
+                    }
+                }
+            }, 300);
+        }
+
+        function applyFilters() {
+             // ... (unchanged - updates tag highlights, renders tree/todos, shows clear button) ...
+             if (!directoryHandle) return; // Don't apply if no folder open
+             console.log("Applying filter:", activeFilter);
+
+             document.querySelectorAll('#tag-list .tag-item.active-filter').forEach(el => el.classList.remove('active-filter'));
+
+             if (activeFilter.type === 'tag') {
+                  try {
+                     // Escape potentially problematic characters in tag name for CSS selector
+                     const activeTagElement = tagListDiv.querySelector(`.tag-item[data-tag="${CSS.escape(activeFilter.value)}"]`);
+                     if (activeTagElement) {
+                         activeTagElement.classList.add('active-filter');
+                     }
+                  } catch (e) {
+                      console.error("CSS selector error for tag:", activeFilter.value, e);
+                  }
+             }
+
+            renderFileTreeUI(fileTree, fileListDiv, activeFilter);
+            renderTodos(activeFilter);
+            clearFilterBtn.style.display = activeFilter.type ? 'inline-block' : 'none';
+        }
+
+        function clearAllFilters() {
+            // ... (unchanged - resets state, clears search, removes highlights, renders unfiltered) ...
+            if (!directoryHandle && !activeFilter.type) return; // No folder and no active filter, nothing to clear
+            console.log("Clearing all filters.");
+            activeFilter = { type: null, value: null };
+            searchBar.value = '';
+
+             document.querySelectorAll('#tag-list .tag-item.active-filter').forEach(el => el.classList.remove('active-filter'));
+
+            // Re-render full lists only if a folder is open
+             if (directoryHandle) {
+                renderFileTreeUI(fileTree, fileListDiv, null);
+                renderTodos(null);
+             } else {
+                 // If no folder, ensure placeholders are shown
+                 fileListDiv.innerHTML = '<p>No folder selected.</p>';
+                 renderTags(); // Will show placeholder
+                 renderTodos(); // Will show placeholder
+             }
+
+            clearFilterBtn.style.display = 'none';
+        }
+
+
+        // --- Metadata Processing ---
+        // ... (parseFileContent, processFile, scanAllFilesForMetadata, updateMetadataForFile, clearMetadata unchanged) ...
+         function parseFileContent(content) {
+            const tags = new Set();
+            const todos = [];
+            const tagRegex = /#([a-zA-Z0-9_][a-zA-Z0-9_/-]*[a-zA-Z0-9_]|[a-zA-Z][a-zA-Z0-9_]*)/g;
+            let tagMatch;
+            while ((tagMatch = tagRegex.exec(content)) !== null) {
+                if (tagMatch[1] && tagMatch[1] !== '/') {
+                     tags.add(tagMatch[1]);
+                }
+            }
+            const todoRegex = /^[ \t]*[-*+]\s+\[([ xX]?)]\s+(.*)/;
+            const lines = content.split('\n');
+             lines.forEach(line => {
+                 const lineTrimmed = line.trim();
+                 const match = lineTrimmed.match(todoRegex);
+                 if (match) {
+                     const taskText = match[2].trim();
+                     const isOnlyImageLink = /^\!\[\[.*\]\]$/.test(taskText);
+                     if (!isOnlyImageLink && taskText.length > 0) {
+                         todos.push({ completed: match[1].toLowerCase() === 'x', text: taskText, originalLine: lineTrimmed });
+                     }
+                 }
+             });
+            return { tags, todos, content };
+        }
+        async function processFile(fileHandle) {
+             if (!fileHandle || fileHandle.kind !== 'file') { return; }
+             try {
+                 const file = await fileHandle.getFile();
+                 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+                 if (file.size > MAX_FILE_SIZE) {
+                     console.warn(`Skipping large file ${fileHandle.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                     fileMetadata.set(fileHandle, { tags: new Set(), todos: [], content: null, handle: fileHandle });
+                     return;
+                 }
+                 const content = await file.text();
+                 const metadata = parseFileContent(content);
+                 fileMetadata.set(fileHandle, { tags: metadata.tags, todos: metadata.todos, content: content, handle: fileHandle });
+                 metadata.tags.forEach(tag => allTags.add(tag));
+                 metadata.todos.forEach(todo => { allTodos.push({ ...todo, fileHandle: fileHandle, fileName: fileHandle.name }); });
+             } catch (error) {
+                 if (error instanceof DOMException && error.name === 'EncodingError') {
+                    console.warn(`Skipping file ${fileHandle.name} due to encoding error.`);
+                    fileMetadata.set(fileHandle, { tags: new Set(), todos: [], content: null, handle: fileHandle });
+                 } else {
+                    console.error(`Error processing file ${fileHandle.name}:`, error);
+                    fileMetadata.delete(fileHandle);
+                 }
+             }
+         }
+         async function scanAllFilesForMetadata() {
+             console.log("Starting metadata scan...");
+             clearMetadata();
+             if (!fileTree) { console.log("Scan skipped: No file tree."); renderTags(); renderTodos(); return; }
+             const fileHandlesToScan = [];
+             function collectFileHandlesRecursive(nodes) {
+                 if (!nodes) return;
+                 nodes.forEach(node => {
+                     if (node.type === 'file' && node.handle) { fileHandlesToScan.push(node.handle); }
+                     else if (node.type === 'folder') { collectFileHandlesRecursive(node.children); }
+                 });
+             }
+             collectFileHandlesRecursive(fileTree);
+             if (fileHandlesToScan.length === 0) { console.log("No markdown files found."); renderTags(); renderTodos(); return; }
+             console.log(`Scanning ${fileHandlesToScan.length} file(s)...`);
+             const results = await Promise.allSettled(fileHandlesToScan.map(handle => processFile(handle)));
+             results.forEach((result, index) => { if (result.status === 'rejected') { console.warn(`Processing failed for: ${fileHandlesToScan[index]?.name || 'unknown handle'}`); } });
+             console.log("Metadata scan finished.");
+             renderTags();
+             renderTodos();
+         }
+         async function updateMetadataForFile(fileHandle) {
+             if (!fileHandle || !fileMetadata) return;
+             console.log(`Updating metadata for ${fileHandle.name}...`);
+             const oldMetadata = fileMetadata.get(fileHandle);
+             if (oldMetadata) {
+                 allTodos = allTodos.filter(todo => todo.fileHandle !== fileHandle);
+             }
+             try {
+                 const file = await fileHandle.getFile();
+                 const latestContent = await file.text();
+                 const tempMetadata = parseFileContent(latestContent);
+                 fileMetadata.set(fileHandle, { tags: tempMetadata.tags, todos: tempMetadata.todos, content: latestContent, handle: fileHandle });
+                 allTags.clear();
+                 for(const meta of fileMetadata.values()){ if(meta.tags) meta.tags.forEach(t => allTags.add(t)); }
+                 tempMetadata.todos.forEach(todo => { allTodos.push({ ...todo, fileHandle: fileHandle, fileName: fileHandle.name }); });
+                 console.log(`Metadata updated for ${fileHandle.name}.`);
+             } catch (error) {
+                 console.error(`Failed to re-process metadata for ${fileHandle.name}:`, error);
+             }
+             renderTags();
+             renderTodos(activeFilter);
+         }
+         function clearMetadata() {
+            allTags.clear();
+            allTodos = [];
+            fileMetadata.clear();
+            console.log("Cleared internal metadata stores.");
+        }
+
+        // --- Tree/Handle Helpers ---
+        // ... (findHandleInTreeByKey, findNodeElementByKey unchanged) ...
+        function findHandleInTreeByKey(treeNodes, targetKey) {
+             if (!treeNodes || !targetKey) return null;
+             function searchNodes(nodes) {
+                 if (!nodes) return null;
+                 for (const node of nodes) {
+                     if (node.type === 'file' && node.handle?.name === targetKey) { return node.handle; }
+                     if (node.type === 'folder') { const found = searchNodes(node.children); if (found) return found; }
+                 }
+                 return null;
+             }
+             return searchNodes(treeNodes);
+         }
+        function findNodeElementByKey(container, key) {
+            if (!container || !key) return null;
+            try {
+                 const contentElement = container.querySelector(`.node-content[data-file-handle-key="${CSS.escape(key)}"]`);
+                 return contentElement ? contentElement.closest('.tree-node') : null;
+            } catch (e) { console.error("CSS selector error:", e); return null; }
+        }
+
+
+        // --- Editor & File Handling ---
+        // ... (loadFile, handleEditorInput, throttlePreviewUpdate unchanged) ...
+         async function loadFile(fileHandle) {
+            if (!fileHandle || fileHandle.kind !== 'file') { console.warn("Invalid handle:", fileHandle); return; }
+            if (!directoryHandle) { console.error("Cannot load file, directory handle is missing."); return; }
+            console.log(`Loading file: ${fileHandle.name}`);
+            currentFileInfoDiv.textContent = `Loading ${fileHandle.name}...`;
+            try {
+                 if (await directoryHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+                     if (await directoryHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') { throw new Error('Permission denied.'); }
+                     try { await saveSetting(KEY_LAST_HANDLE, directoryHandle); } catch {}
+                 }
+                const file = await fileHandle.getFile();
+                const content = await file.text();
+                currentFileHandle = fileHandle;
+                editor.innerText = content;
+                updatePreview();
+                currentFileInfoDiv.textContent = `${fileHandle.name}`;
+                saveBtn.disabled = true;
+                toggleViewBtn.disabled = editor.innerText === ''; // Disable toggle only if truly empty
+                isDirty = false;
+                setView(currentView);
+                requestAnimationFrame(() => { editor.focus({ preventScroll: true }); editor.scrollTop = 0; });
+                console.log(`File ${fileHandle.name} loaded.`);
+            } catch (err) {
+                 if (err instanceof DOMException && err.name === 'EncodingError') { alert(`Error loading file: ${fileHandle?.name} - Not a text file?`); }
+                 else { alert(`Error loading file: ${err.message}.`); }
+                 console.error(`Error loading file ${fileHandle?.name}:`, err);
+                resetEditorState();
+            }
+        }
+        function handleEditorInput() {
+            const editorHasText = editor.innerText !== ''; // Check for *any* text, not just non-whitespace
+            const editorHasNonWhitespace = editor.innerText.trim() !== '';
+
+            if (!isDirty) {
+                 console.log("File marked as dirty.");
+                 isDirty = true;
+                 // Enable Save if handle exists, enable Save As if no handle but has content
+                 saveBtn.disabled = currentFileHandle ? false : !editorHasNonWhitespace;
+                 if(currentFileHandle) currentFileInfoDiv.textContent = `${currentFileHandle.name}*`;
+            }
+            toggleViewBtn.disabled = !editorHasText; // Allow preview even with only whitespace
+
+            if (currentView === 'preview' && editorHasText) {
+                throttlePreviewUpdate();
+            }
+        }
+        function throttlePreviewUpdate() {
+            clearTimeout(throttleTimer);
+            throttleTimer = setTimeout(() => { updatePreview(); throttleTimer = null; }, 250);
+        }
+
+        // --- UI State Changers ---
+        function setFocusMode(enable) {
+             // ... (unchanged - toggles class, button text, saves setting) ...
+             document.body.classList.toggle('zen-mode', enable);
+             toggleFocusBtn.textContent = enable ? '✨ Unfocus' : '🧘 Zen';
+             toggleFocusBtn.title = enable ? 'Show Sidebar' : 'Toggle Focus Mode (Zen Mode)';
+             saveSetting(KEY_ZEN_MODE, enable).catch(err => console.warn("Failed to save Zen mode:", err));
+             window.dispatchEvent(new Event('resize'));
+        }
+        function toggleFocusMode() {
+             if (!isInitialized) return;
+             const isZen = document.body.classList.contains('zen-mode');
+             setFocusMode(!isZen);
+        }
+        function toggleView() {
+            if (toggleViewBtn.disabled || !isInitialized) return;
+            setView(currentView === 'editor' ? 'preview' : 'editor');
+        }
+        function updatePreview() {
+             // ... (unchanged - renders markdown using Marked.js) ...
+            if (currentView !== 'preview') return;
+            if (typeof marked === 'undefined') { preview.innerHTML = `<p style="color: var(--error-color);">Preview unavailable: Marked.js not loaded.</p>`; return; }
+            try { preview.innerHTML = marked.parse(editor.innerText); preview.scrollTop = 0; }
+            catch (err) { console.error("Markdown error:", err); preview.innerHTML = `<p style="color: var(--error-color);">Preview error.</p>`; }
+        }
+        function setView(viewMode) {
+            // ... (unchanged - switches editor/preview display) ...
+            currentView = viewMode;
+            if (viewMode === 'editor') {
+                editor.style.display = 'block'; preview.style.display = 'none';
+                 if (document.activeElement === document.body || document.activeElement === preview || document.activeElement === toggleViewBtn) {
+                      requestAnimationFrame(() => editor.focus({ preventScroll: true }));
+                 }
+            } else {
+                updatePreview(); editor.style.display = 'none'; preview.style.display = 'block';
+            }
+        }
+
+        // --- Saving ---
+        function handleSaveClick() {
+            if (!isInitialized) return;
+            if (saveBtn.disabled && !isDirty) return;
+             if (currentFileHandle) { saveCurrentFile(currentFileHandle); }
+             else if (editor.innerText.trim() !== '') { saveAsNewFile(); }
+             else { console.log("Save: No file open, editor empty."); }
+        }
+        async function saveCurrentFile(fileHandleToSave) {
+            // ... (unchanged - verifies permissions, writes content, updates metadata) ...
+             if (!fileHandleToSave || !isDirty) { console.log("Save skipped: No handle or no changes."); return; }
+             if (!directoryHandle) { console.error("Save failed: Directory handle lost."); alert("Save Error: Folder context lost."); return; }
+             const originalName = fileHandleToSave.name;
+             console.log(`Saving ${originalName}...`);
+             currentFileInfoDiv.textContent = `Saving ${originalName}...`;
+             saveBtn.disabled = true;
+             try {
+                 if (await directoryHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+                     if (await directoryHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') { throw new Error('Permission denied.'); }
+                     try { await saveSetting(KEY_LAST_HANDLE, directoryHandle); } catch {}
+                 }
+                 const writable = await fileHandleToSave.createWritable();
+                 await writable.write(editor.innerText);
+                 await writable.close();
+                 console.log(`Saved ${originalName}.`);
+                 isDirty = false; saveBtn.disabled = true;
+                 currentFileInfoDiv.textContent = `${originalName}`;
+                 await updateMetadataForFile(fileHandleToSave);
+             } catch (err) {
+                 console.error(`Save error (${originalName}):`, err); alert(`Error saving: ${err.message}`);
+                 currentFileInfoDiv.textContent = `Save failed: ${originalName}`;
+                 saveBtn.disabled = !isDirty; // Re-enable if still dirty
+             }
+        }
+        async function saveAsNewFile() {
+            // ... (unchanged - uses picker, saves, refreshes tree if needed) ...
+             if (!directoryHandle) { console.warn("Save As: No directory context."); /* Proceed anyway */ }
+             console.log("Save As...");
+             try {
+                 const newFileHandle = await window.showSaveFilePicker({ suggestedName: 'Untitled.md', types: [{ description: 'Markdown Files', accept: { 'text/markdown': ['.md'] } }] });
+                 console.log(`Saving as ${newFileHandle.name}...`);
+                 currentFileInfoDiv.textContent = `Saving ${newFileHandle.name}...`;
+                 saveBtn.disabled = true;
+                 const writable = await newFileHandle.createWritable();
+                 await writable.write(editor.innerText);
+                 await writable.close();
+                 console.log(`Saved as ${newFileHandle.name}.`);
+                 currentFileHandle = newFileHandle; isDirty = false; saveBtn.disabled = true;
+                 currentFileInfoDiv.textContent = `${newFileHandle.name}`;
+                 toggleViewBtn.disabled = editor.innerText === '';
+
+                 if (directoryHandle && await isHandleInsideDirectory(newFileHandle, directoryHandle)) {
+                     console.log("New file inside current directory. Refreshing...");
+                     alert(`Saved ${newFileHandle.name}. Refreshing list...`);
+                     await buildFileTree(); await scanAllFilesForMetadata();
+                     const newNodeElement = findNodeElementByKey(fileListDiv, newFileHandle.name);
+                     if (newNodeElement) {
+                          if (activeTreeNodeElement) activeTreeNodeElement.classList.remove('active');
+                          newNodeElement.classList.add('active'); activeTreeNodeElement = newNodeElement;
+                          let parentLi = newNodeElement.parentElement?.closest('.tree-node'); while(parentLi) { if(parentLi.classList.contains('collapsed')) parentLi.classList.remove('collapsed'); parentLi = parentLi.parentElement?.closest('.tree-node'); }
+                          newNodeElement.scrollIntoView({ block: 'nearest', behavior: 'smooth'});
+                     }
+                 } else {
+                     alert(`Saved ${newFileHandle.name}.`);
+                 }
+             } catch (err) {
+                 if (err.name === 'AbortError') { console.log("Save As cancelled."); }
+                 else { console.error('Save As error:', err); alert(`Error saving: ${err.message}`); }
+                 saveBtn.disabled = !(isDirty && editor.innerText.trim() !== ''); // Re-enable only if was dirty & has content
+                 currentFileInfoDiv.textContent = currentFileHandle ? currentFileHandle.name : "No file selected";
+                 if(isDirty && currentFileHandle) currentFileInfoDiv.textContent += "*";
+             }
+        }
+        async function isHandleInsideDirectory(fileHandle, dirHandle) {
+            // ... (unchanged) ...
+             try { const path = await dirHandle.resolve(fileHandle); return path !== null; } catch (e) { return false; }
+        }
+
+        // --- TODO Handling ---
+        async function handleTodoCheckboxChange(event) {
+            // ... (unchanged - detailed logic for finding line and updating file) ...
+            if (event.target.type !== 'checkbox') return;
+             const checkbox = event.target;
+             const todoElement = checkbox.closest('.todo-item');
+             if (!todoElement) return;
+             const todoIndex = parseInt(checkbox.dataset.todoIndex || todoElement.dataset.todoIndex, 10);
+             if (isNaN(todoIndex)) { console.error("Invalid TODO index"); return; }
+
+             const todoItem = allTodos.find(todo => todo.currentIndex === todoIndex);
+             if (!todoItem?.fileHandle || typeof todoItem.originalLine !== 'string') {
+                 console.error("Cannot update TODO: Missing data", { todoIndex, todoItem });
+                 checkbox.checked = !checkbox.checked; alert("Error: TODO data missing."); return;
+             }
+
+             const newCompletedState = checkbox.checked;
+             const fileHandle = todoItem.fileHandle;
+             const originalLineToFind = todoItem.originalLine;
+             console.log(`Toggling TODO: "${todoItem.text}" in ${fileHandle.name} to ${newCompletedState}`);
+             checkbox.disabled = true; todoElement.style.opacity = '0.6'; todoElement.style.pointerEvents = 'none';
+
+             try {
+                  if (!directoryHandle) throw new Error("Folder context lost.");
+                  if (await directoryHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+                      if (await directoryHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') { throw new Error('Permission denied.'); }
+                      try { await saveSetting(KEY_LAST_HANDLE, directoryHandle); } catch {}
+                  }
+                 const file = await fileHandle.getFile(); let fileContent = await file.text(); const lines = fileContent.split('\n');
+                 let lineIndexToModify = -1;
+                 for (let i = 0; i < lines.length; i++) { if (lines[i].trim() === originalLineToFind) { if (/^[ \t]*[-*+]\s+\[([ xX]?)]/.test(lines[i])) { lineIndexToModify = i; break; } } }
+                 if (lineIndexToModify === -1) { throw new Error(`Could not find line: "${originalLineToFind}". File may have changed.`); }
+                 const currentLine = lines[lineIndexToModify]; const currentMarkMatch = currentLine.match(/^[ \t]*[-*+]\s+\[([ xX]?)]/); const currentMark = currentMarkMatch ? currentMarkMatch[1].toLowerCase() : ''; const newMark = newCompletedState ? 'x' : ' ';
+
+                 if (currentMark !== newMark) {
+                     const leadingWhitespaceAndMarker = currentLine.match(/^[ \t]*[-*+]\s+/)[0]; lines[lineIndexToModify] = `${leadingWhitespaceAndMarker}[${newMark}] ${todoItem.text}`;
+                     const updatedContent = lines.join('\n');
+                     const writable = await fileHandle.createWritable(); await writable.write(updatedContent); await writable.close();
+                     console.log(`TODO updated in ${fileHandle.name}`);
+                     todoItem.completed = newCompletedState; todoItem.originalLine = lines[lineIndexToModify].trim();
+                     if (currentFileHandle && currentFileHandle.name === fileHandle.name) {
+                          const currentScroll = editor.scrollTop; editor.innerText = updatedContent; editor.scrollTop = currentScroll;
+                          isDirty = false; saveBtn.disabled = true; currentFileInfoDiv.textContent = currentFileHandle.name;
+                     } else { const cachedMeta = fileMetadata.get(fileHandle); if (cachedMeta) { cachedMeta.content = updatedContent; cachedMeta.todos = cachedMeta.todos.map(t => t.originalLine === originalLineToFind ? { ...t, completed: newCompletedState, originalLine: todoItem.originalLine } : t ); } }
+                 } else { console.log("TODO state already matches."); todoItem.completed = newCompletedState; }
+                 renderTodos(activeFilter);
+             } catch (error) {
+                 console.error("Error updating TODO:", error); alert(`Failed to update TODO: ${error.message}`);
+                 checkbox.checked = !newCompletedState; renderTodos(activeFilter); // Re-render to fix UI state
+             } finally {
+                 if (document.body.contains(checkbox)) checkbox.disabled = false;
+                 if (document.body.contains(todoElement)) { todoElement.style.opacity = '1'; todoElement.style.pointerEvents = 'auto'; }
+             }
+        }
+
+        function resetEditorState() {
+            // ... (unchanged - clears editor, file info, active node, optionally folder UI) ...
+            console.log("Resetting editor state...");
+            editor.innerText = ''; preview.innerHTML = '';
+            currentFileInfoDiv.textContent = 'No file selected';
+            currentFileHandle = null; isDirty = false;
+            saveBtn.disabled = true; toggleViewBtn.disabled = true; // Always disable toggle when empty
+            if (activeTreeNodeElement) { activeTreeNodeElement.classList.remove('active'); activeTreeNodeElement = null; }
+            setView('editor');
+             if (!directoryHandle) {
+                 console.log("Clearing folder-specific UI.");
+                 fileListDiv.innerHTML = '<p>No folder selected.</p>';
+                 searchBar.value = ''; searchBar.disabled = true;
+                 clearFilterBtn.style.display = 'none'; activeFilter = { type: null, value: null };
+                 fileTree = null; clearMetadata(); renderTags(); renderTodos();
+             }
+        }
+
+        // --- File Management (Placeholders) ---
+        // ... (unchanged) ...
+        async function createFile(parentDirHandle, fileName) { alert("Create file not implemented."); return null; }
+        async function createFolder(parentDirHandle, folderName) { alert("Create folder not implemented."); return null; }
+        async function renameEntry(handle, newName) { alert("Rename not implemented."); return false; }
+        async function deleteEntry(handle) { alert("Delete not implemented."); return false; }
+
+
+        // --- Start the Application ---
+        // Use DOMContentLoaded to ensure all elements are available before init
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
